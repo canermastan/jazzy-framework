@@ -1,0 +1,64 @@
+name: 💡 Feature Request
+description: Got an idea? Share it with us!
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! We love new ideas 💡
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: What area is this about?
+      options:
+        - Core Framework
+        - Dependency Injection
+        - HTTP/Routing
+        - Validation
+        - Documentation
+        - Developer Experience
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What's your idea?
+      description: Describe the feature you'd like to see
+      placeholder: I think it would be great if Jazzy could...
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would this be useful?
+      description: How would this help you or other developers?
+      placeholder: This would solve the problem of...
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Code example (optional)
+      description: Show how you imagine this feature working
+      render: java
+      placeholder: |
+        // Example of how this might work
+        @NewAnnotation
+        public class ExampleController {
+            // Your example here
+        }
+
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Can you help? (optional)
+      options:
+        - label: I'd like to implement this myself
+        - label: I can help with testing
+        - label: I can help with documentation 
