@@ -1,0 +1,58 @@
+name: 🐛 Bug Report
+description: Found a bug? Let us know!
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make Jazzy Framework better! 🙏
+
+  - type: input
+    id: version
+    attributes:
+      label: Framework Version
+      description: Which version are you using?
+      placeholder: e.g., 0.2.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Tell us what went wrong
+      placeholder: Describe the bug in a few sentences...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can we reproduce it?
+      description: Simple steps to reproduce the bug
+      placeholder: |
+        1. Create a controller with...
+        2. Make a request to...
+        3. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Code example (optional)
+      description: Share a small code snippet if helpful
+      render: java
+      placeholder: |
+        @Component
+        public class MyController {
+            // Your code here
+        }
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Error message (optional)
+      description: Copy/paste any error messages
+      render: shell 

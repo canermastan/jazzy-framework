@@ -1,0 +1,32 @@
+name: ❓ Question
+description: Need help with something?
+title: "[QUESTION] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Need help? We're here for you! 🤝
+
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you need help with?
+      description: Ask your question
+      placeholder: How do I...? / Why does...? / Can Jazzy Framework...?
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried? (optional)
+      description: Let us know what you've already attempted
+      placeholder: I tried following the documentation but...
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Code example (optional)
+      description: Share your code if relevant
+      render: java 

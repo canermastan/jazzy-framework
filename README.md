@@ -258,25 +258,37 @@ You can gradually migrate - mix DI and manual instantiation in the same applicat
 
 We believe that open source thrives with community involvement, and we appreciate all types of contributions, whether you're fixing a typo, improving documentation, adding a new feature, or reporting a bug.
 
-### Getting Started
+### 📖 Complete Contributing Guide
 
-1. Fork the project
-2. Clone your fork (`git clone https://github.com/canermastan/jazzy-framework.git`)
-3. Create a feature branch (`git checkout -b feature/amazing-feature`)
-4. Make your changes (don't forget to add tests if applicable)
-5. Run tests to make sure everything works (`mvn test`)
-6. Commit your changes (`git commit -m 'Add some amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
+For detailed contribution guidelines, development setup, and code standards, see our **[Contributing Guide](CONTRIBUTING.md)**.
 
-### Pull Request Guidelines
+### 🚀 Quick Start for Contributors
 
-- Keep your changes focused on a single issue
-- Make sure all tests pass
-- Update documentation if needed
-- Follow existing code style
+1. **Read our [Contributing Guide](CONTRIBUTING.md)** for detailed instructions
+2. **Fork the project** and clone your fork
+3. **Check out [good first issues](https://github.com/canermastan/jazzy-framework/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)** for beginner-friendly tasks
+4. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
+5. **Make your changes** and add tests if applicable
+6. **Run tests** to make sure everything works (`mvn test`)
+7. **Commit your changes** following [Conventional Commits](https://www.conventionalcommits.org/)
+8. **Push to your branch** and open a Pull Request
 
-No contribution is too small, and we're happy to help newcomers get started!
+### 🤝 Community & Support
+
+- 💬 **[GitHub Discussions](https://github.com/canermastan/jazzy-framework/discussions)** - Community help and general questions
+- 🐛 **[Report Issues](https://github.com/canermastan/jazzy-framework/issues/new/choose)** - Bug reports and feature requests
+- 📚 **[Documentation](https://canermastan.github.io/jazzy-framework/)** - Complete framework documentation
+- 🎯 **[Good First Issues](https://github.com/canermastan/jazzy-framework/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)** - Perfect for newcomers
+
+### 🏷️ Issue Templates
+
+We have beginner-friendly issue templates to help you contribute:
+
+- 🐛 **Bug Report** - Found something broken?
+- 💡 **Feature Request** - Have an idea for improvement?
+- ❓ **Question** - Need help with something?
+
+No contribution is too small, and we're happy to help newcomers get started! 🚀
 
 ## License
 
