@@ -1,18 +1,66 @@
-/**
- * Manages HTTP routes in the Jazzy Framework.
- * This class is responsible for registering routes with HTTP methods and controller methods,
- * finding the appropriate route for a request, and extracting path parameters from the URL.
- */
 package jazzyframework.routing;
+
+import jazzyframework.di.DIContainer;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Manages HTTP routes in the Jazzy Framework.
+ * 
+ * <p>This class is responsible for:
+ * <ul>
+ *   <li>Registering routes with HTTP methods and controller methods</li>
+ *   <li>Finding the appropriate route for incoming requests</li>
+ *   <li>Extracting path parameters from URLs</li>
+ *   <li>Integrating with dependency injection for controller instantiation</li>
+ * </ul>
+ * 
+ * <p>The router supports all standard HTTP methods (GET, POST, PUT, DELETE, PATCH)
+ * and provides path parameter extraction for dynamic routes like {@code /user/{id}}.
+ * 
+ * @since 0.1
+ * @author Caner Mastan
+ */
 public class Router {
     private final Map<String, Route> routes = new HashMap<>();
     private static final Set<String> ALLOWED_METHODS = Set.of("GET", "POST", "PUT", "DELETE", "PATCH");
+    private DIContainer diContainer;
+
+    /**
+     * Creates a new Router instance.
+     */
+    public Router() {
+    }
+
+    /**
+     * Creates a new Router instance with dependency injection support.
+     * 
+     * @param diContainer the DI container to use for creating controller instances
+     */
+    public Router(DIContainer diContainer) {
+        this.diContainer = diContainer;
+    }
+
+    /**
+     * Sets the DI container for this router.
+     * 
+     * @param diContainer the DI container
+     */
+    public void setDIContainer(DIContainer diContainer) {
+        this.diContainer = diContainer;
+    }
+
+    /**
+     * Gets the DI container used by this router.
+     * 
+     * @return the DI container, or null if not set
+     */
+    public DIContainer getDIContainer() {
+        return diContainer;
+    }
 
     /**
      * Registers a new GET route.

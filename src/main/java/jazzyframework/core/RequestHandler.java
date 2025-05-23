@@ -1,9 +1,3 @@
-/**
- * Handles individual HTTP requests received by the server.
- * This class is responsible for parsing HTTP requests, routing them to the appropriate controller,
- * executing the controller method with the correct parameters, and returning the response to the client.
- * It also collects metrics for each request.
- */
 package jazzyframework.core;
 
 import java.io.BufferedReader;
@@ -26,6 +20,26 @@ import jazzyframework.http.validation.ValidationResult;
 import jazzyframework.routing.Route;
 import jazzyframework.routing.Router;
 
+/**
+ * Handles individual HTTP requests received by the server.
+ * 
+ * <p>This class is responsible for:
+ * <ul>
+ *   <li>Parsing HTTP requests (method, path, headers, body)</li>
+ *   <li>Routing requests to the appropriate controller</li>
+ *   <li>Creating controller instances with dependency injection</li>
+ *   <li>Executing controller methods with correct parameters</li>
+ *   <li>Returning responses to clients</li>
+ *   <li>Collecting metrics for each request</li>
+ * </ul>
+ * 
+ * <p>Each request is handled in a separate thread to support concurrent processing.
+ * The handler integrates with the DI container to automatically inject dependencies
+ * into controller instances.
+ * 
+ * @since 0.1
+ * @author Caner Mastan
+ */
 public class RequestHandler implements Runnable {
     public static final Logger logger = Logger.getLogger(RequestHandler.class.getName());
     private final Socket clientSocket;
@@ -53,18 +67,15 @@ public class RequestHandler implements Runnable {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 BufferedWriter out = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()))) {
 
-            // Start time for metrics
             long startTime = System.currentTimeMillis();
             Metrics.totalRequests.incrementAndGet();
 
-            // for example: GET /hello HTTP/1.1
             String line = in.readLine();
             if (line == null) {
                 logger.warning("Client closed connection before sending request line.");
                 return;
             }
             if (line.isEmpty()) {
-                // Empty request line, ignore
                 logger.fine("Empty request line received, ignoring.");
                 return;
             }
@@ -79,7 +90,6 @@ public class RequestHandler implements Runnable {
             String method = parts[0];
             String fullPath = parts[1];
             
-            // Extract query parameters if present
             String path = fullPath;
             Map<String, String> queryParams = new HashMap<>();
             
@@ -92,7 +102,6 @@ public class RequestHandler implements Runnable {
 
             logger.info("Received request: " + method + " " + path);
 
-            // Validate HTTP method supported by your router
             if (!router.isSupportedMethod(method)) {
                 logger.warning("Unsupported HTTP method: " + method);
                 out.write(ErrorResponse.methodNotAllowed("Method Not Allowed")
@@ -104,7 +113,6 @@ public class RequestHandler implements Runnable {
 
             Map<String, String> headers = new HashMap<>();
             
-            // Read headers
             String headerLine;
             int contentLength = 0;
             String contentType = null;
@@ -131,7 +139,6 @@ public class RequestHandler implements Runnable {
                 }
             }
 
-            // Validate body presence only for allowed methods
             if (contentLength > 0 && !(method.equals("POST") || method.equals("PUT") || method.equals("PATCH"))) {
                 logger.warning("Request with body on method that shouldn't have one: " + method);
                 out.write(ErrorResponse.badRequest("Body not allowed for method " + method).toHttpResponse());
@@ -139,7 +146,6 @@ public class RequestHandler implements Runnable {
                 return;
             }
 
-            // Read body if content length is present
             String body = "";
             if (contentLength > 0) {
                 char[] buffer = new char[contentLength];
@@ -150,7 +156,6 @@ public class RequestHandler implements Runnable {
                 }
             }
             
-            // Validate route existence
             Route route = router.findRoute(method, path);
             if (route == null) {
                 logger.warning("Route not found: " + method + " " + path);
@@ -166,9 +171,16 @@ public class RequestHandler implements Runnable {
             logger.info("Query params: " + queryParams);
             
             Class<?> controllerClass = route.getControllerClass();
-            Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
             
-            // Find the controller method
+            Object controllerInstance;
+            if (router.getDIContainer() != null) {
+                controllerInstance = router.getDIContainer().getComponent(controllerClass);
+                logger.info("Created controller instance with DI: " + controllerClass.getSimpleName());
+            } else {
+                controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
+                logger.info("Created controller instance without DI: " + controllerClass.getSimpleName());
+            }
+            
             Method controllerMethod = findControllerMethod(controllerClass, route.getMethodName());
             if (controllerMethod == null) {
                 logger.warning("Method not found: " + route.getMethodName());
@@ -177,10 +189,8 @@ public class RequestHandler implements Runnable {
                 return;
             }
             
-            // Create Request object
             Request request = new Request(method, path, headers, pathParams, queryParams, body);
             
-            // Check if request requires a body but body is empty
             boolean isBodyRequired = method.equals("POST") || method.equals("PUT") || method.equals("PATCH");
             boolean isBodyEmpty = body == null || body.trim().isEmpty();
             
@@ -192,18 +202,13 @@ public class RequestHandler implements Runnable {
             }
             
             try {
-                // Call the method with the Request object
                 Object result = controllerMethod.invoke(controllerInstance, request);
                 
-                // Handle different return types
                 if (result instanceof Response) {
-                    // If the controller returns a Response object, use it directly
                     out.write(((Response) result).toHttpResponse());
                 } else if (result instanceof String) {
-                    // If the controller returns a String, wrap it in a text response
                     out.write(Response.text((String) result).toHttpResponse());
                 } else if (result instanceof ValidationResult) {
-                    // If the controller returns a ValidationResult, create a validation error response
                     ValidationResult validationResult = (ValidationResult) result;
                     if (!validationResult.isValid()) {
                         out.write(ErrorResponse.validationError("Validation failed: " + validationResult.getFirstErrors())
@@ -213,11 +218,9 @@ public class RequestHandler implements Runnable {
                                 .toHttpResponse());
                     }
                 } else {
-                    // For any other object, convert it to JSON
                     out.write(Response.json(result).toHttpResponse());
                 }
             } catch (IllegalArgumentException e) {
-                // This will catch validation errors like missing required parameters
                 logger.warning("Bad request: " + e.getMessage());
                 out.write(ErrorResponse.badRequest(e.getMessage()).toHttpResponse());
             }
