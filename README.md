@@ -1,9 +1,37 @@
 # Jazzy Framework
 
-Jazzy is a lightweight web framework for Java. It provides a minimal and easy-to-understand API for developing fast web applications with a structure inspired by Laravel.
+Jazzy is a lightweight web framework for Java. It provides a minimal and easy-to-understand API for developing fast web applications with a structure inspired by Laravel and Spring Boot.
+
+## 🚀 Latest Updates (v0.2.0)
+
+**NEW: Enterprise-Level Dependency Injection System!**
+
+Jazzy Framework 0.2 introduces a comprehensive Spring-like dependency injection system with zero configuration:
+
+- 🔧 **Zero Configuration DI**: Automatic component discovery
+- 📦 **Spring-like Annotations**: @Component, @Named, @Primary, @PostConstruct, @PreDestroy
+- 🔌 **Constructor Injection**: Clean, testable dependency injection  
+- ⚖️ **Multiple Implementations**: Handle conflicts with @Named and @Primary
+- 🔄 **Lifecycle Management**: Proper initialization and cleanup
+- 📊 **Scope Management**: @Singleton and @Prototype support
+- 🔗 **Framework Integration**: Seamless integration with routing and controllers
+
+## Version History
+
+| Version | Release Date | Key Features |
+|---------|-------------|--------------|
+| **0.2.0** | 2025 | 🆕 **Dependency Injection System**, Spring-like annotations, automatic component discovery, lifecycle management |
+| **0.1.0** | 2025 | Core framework with routing, request/response handling, JSON utilities, validation system, metrics |
+
+### 🔮 Upcoming Features (Roadmap)
+
+| Planned Version | Features |
+|----------------|----------|
+| **0.3.0** | 🗄️ **Database Integration** - jOOQ integration, connection pooling, transaction management |
 
 ## Features
 
+### Core Framework (v0.1+)
 - Simple and intuitive API
 - Routing system with HTTP method support (GET, POST, PUT, DELETE, PATCH)
 - URL path parameter support
@@ -11,9 +39,18 @@ Jazzy is a lightweight web framework for Java. It provides a minimal and easy-to
 - JSON response generation with fluent API
 - Metrics collection and reporting
 
+### Dependency Injection (v0.2+)
+- **Zero Configuration**: Automatic component discovery with no setup
+- **Constructor Injection**: Dependencies injected via constructor parameters
+- **Named Injection**: Multiple implementations of same interface with @Named
+- **Primary Bean Selection**: Conflict resolution with @Primary annotation
+- **Lifecycle Management**: @PostConstruct and @PreDestroy callbacks
+- **Scope Management**: @Singleton (default) and @Prototype scopes
+- **Framework Integration**: DI works seamlessly with controllers and routing
+
 ## Quick Start
 
-To develop a web application with Jazzy, you can follow this example code:
+### Basic Application (v0.1 style)
 
 ```java
 // App.java
@@ -45,79 +82,97 @@ public class App
         server.start(config.getServerPort());
     }
 }
+```
 
-// UserController.java
-package examples.basic;
+### With Dependency Injection (v0.2 style)
 
-import static jazzyframework.http.ResponseFactory.response;
-import jazzyframework.http.Request;
-import jazzyframework.http.Response;
-import jazzyframework.http.validation.ValidationResult;
-import java.util.Map;
+```java
+// Repository Component
+@Component
+public class UserRepository {
+    private final List<User> users = new ArrayList<>();
+    
+    @PostConstruct
+    public void init() {
+        System.out.println("UserRepository initialized");
+    }
+    
+    public List<User> findAll() {
+        return new ArrayList<>(users);
+    }
+}
 
+// Service Component  
+@Component
+public class UserService {
+    private final UserRepository repository;
+    
+    // Constructor injection - DI container automatically injects UserRepository
+    public UserService(UserRepository repository) {
+        this.repository = repository;
+    }
+    
+    public List<User> getAllUsers() {
+        return repository.findAll();
+    }
+}
+
+// Controller Component
+@Component
 public class UserController {
+    private final UserService userService;
     
-    public Response getUserById(Request request) {
-        String id = request.path("id");
-        
-        return response().json(
-            "id", id,
-            "name", "Fletcher Davidson",
-            "email", "fletcher@example.com"
-        );
+    // Constructor injection - DI container automatically injects UserService
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
-    public Response getAllUsers(Request request) {
-        int page = request.queryInt("page", 1);
-        int limit = request.queryInt("limit", 10);
-        
-        return response().json(
-            "users", JSON.array(
-                JSON.of("id", "user-1", "name", "Fletcher Davidson"),
-                JSON.of("id", "user-2", "name", "Jane Smith")
-            ),
-            "page", page,
-            "limit", limit,
-            "total", 2
-        );
+    public Response getUsers(Request request) {
+        return Response.json(userService.getAllUsers());
     }
+}
 
-    public Response createUser(Request request) {
-        // Validate the request
-        ValidationResult result = request.validator()
-            .field("name").required().minLength(3).maxLength(50)
-            .field("email").required().email()
-            .field("password").required().minLength(8)
-            .validate();
+// Application - DI works automatically!
+public class App {
+    public static void main(String[] args) {
+        Config config = new Config();
+        Router router = new Router();
         
-        if (!result.isValid()) {
-            return response().json(
-                "status", "error",
-                "message", "Validation failed",
-                "errors", result.getAllErrors()
-            ).status(400);
-        }
+        // Define routes - controllers will be created with DI
+        router.GET("/users", "getUsers", UserController.class);
         
-        Map<String, Object> userData = request.parseJson();
-        
-        // Generate a new ID
-        String newId = "user-" + System.currentTimeMillis();
-        userData.put("id", newId);
-        
-        return response().success("User created successfully", userData).status(201);
+        // DI is automatically enabled and configured
+        Server server = new Server(router, config);
+        server.start(8080);
     }
-    
-    // Additional methods for update and delete operations
 }
 ```
 
-For a more detailed example, check the `src/main/java/examples/basic` directory.
+That's it! The DI container automatically:
+- Discovers all `@Component` classes
+- Resolves dependencies between them  
+- Creates instances with proper injection
+- Manages lifecycle callbacks
 
 ## Documentation
 
 Complete documentation for Jazzy Framework is available on our GitHub Pages site:
 
 [Jazzy Framework Documentation](https://canermastan.github.io/jazzy-framework/)
+
+### Documentation Sections
+
+**Core Framework:**
+- [Getting Started Guide](https://canermastan.github.io/jazzy-framework/getting-started)
+- [Routing](https://canermastan.github.io/jazzy-framework/routing) 
+- [HTTP Requests](https://canermastan.github.io/jazzy-framework/requests)
+- [HTTP Responses](https://canermastan.github.io/jazzy-framework/responses)
+- [JSON Operations](https://canermastan.github.io/jazzy-framework/json)
+- [Validation](https://canermastan.github.io/jazzy-framework/validation)
+
+**Dependency Injection (v0.2+):**
+- [Dependency Injection Guide](https://canermastan.github.io/jazzy-framework/dependency-injection)
+- [DI Examples](https://canermastan.github.io/jazzy-framework/di-examples)
 
 ## Development
 
@@ -130,19 +185,22 @@ mvn clean install
 # Run tests
 mvn test
 
-# Run the example application
+# Run the basic example application
 mvn exec:java -Dexec.mainClass="examples.basic.App"
+
+# Run the DI example application (v0.2+)
+mvn exec:java -Dexec.mainClass="examples.di.App"
 ```
 
 ## Project Structure
 
 - `core/`: Core framework components
-  - `Server.java`: HTTP server
-  - `RequestHandler.java`: HTTP request processor
+  - `Server.java`: HTTP server with automatic DI initialization
+  - `RequestHandler.java`: HTTP request processor with DI integration
   - `Config.java`: Configuration management
   - `Metrics.java`: Performance metrics
 - `routing/`: Routing system
-  - `Router.java`: Route management
+  - `Router.java`: Route management with DI container support
   - `Route.java`: Route data structure
 - `http/`: HTTP handling
   - `Request.java`: Request handling
@@ -150,43 +208,49 @@ mvn exec:java -Dexec.mainClass="examples.basic.App"
   - `ResponseFactory.java`: Factory for creating responses
   - `JSON.java`: JSON creation utilities
   - `validation/`: Validation system
+- `di/`: Dependency injection system (v0.2+)
+  - `DIContainer.java`: Main DI container with automatic discovery
+  - `ComponentScanner.java`: Automatic component scanning
+  - `BeanDefinition.java`: Bean metadata and lifecycle management
+  - `annotations/`: DI annotations (@Component, @Named, @Primary, etc.)
 - `controllers/`: System controllers
   - `MetricsController.java`: Metrics reporting
 - `examples/`: Example applications
-  - `basic/`: A simple web API example
+  - `basic/`: A simple web API example (v0.1 style)
+  - `di/`: Dependency injection example (v0.2 style)
 
 ## Tests
 
-Unit tests have been written to ensure the reliability of the framework. Test coverage includes:
+Comprehensive unit tests ensure the reliability of the framework. Test coverage includes:
 
+**Core Framework Tests:**
 - `RouterTest`: Tests for adding routes, finding routes, and path parameter operations
 - `RouteTest`: Tests for the route data structure
 - `MetricsTest`: Tests for metric counters and calculations
 - `ValidationTest`: Tests for the validation system
 - `ResponseFactoryTest`: Tests for response generation
 
-When adding new features or modifying existing code, it's important to update existing tests or add new tests to maintain the stability of the framework.
+**Dependency Injection Tests (v0.2+):**
+- `DIContainerTest`: Tests for DI container functionality and lifecycle
+- `ComponentScannerTest`: Tests for automatic component discovery
+- `BeanDefinitionTest`: Tests for bean metadata extraction
+- `DIIntegrationTest`: Tests for real-world DI scenarios
+- `AnnotationTest`: Tests for all DI annotations
 
-## Roadmap
+**137 total tests** covering all framework features with comprehensive edge case testing.
 
-Jazzy is actively being developed with the following features planned for upcoming releases:
+## Migration Guide
 
-### Upcoming Features
+### From 0.1 to 0.2
 
-- **Middleware System**: Support for request/response middleware chains
-- **Database Integration**: jOOQ integration for type-safe SQL queries
-- **Dependency Injection**: Custom DI container (PococContainer) with `@Named` and `@Qualified` annotations
-- **Security Framework**: Authentication and authorization system
-- **Caching System**: Redis integration for high-performance caching
-- **API Documentation**: Swagger/OpenAPI integration
-- **WebSocket Support**: Real-time bidirectional communication
-- **Task Scheduling**: Cron-style job scheduling
-- **Monitoring Tools**: Health checks and system monitoring
-- **File Storage**: Cloud storage integrations (S3, etc)
-- **Event System**: Pub/sub event handling
-- **CLI Tools**: Command line tools for code generation
-- **And More...**: Stay tuned for additional features!
+**Good news: Zero breaking changes!** All existing 0.1 code continues to work without modification.
 
+**To use new DI features:**
+1. Add `@Component` annotation to classes you want managed by DI
+2. Use constructor injection for dependencies
+3. Optionally use `@Named`, `@Primary`, `@PostConstruct`, `@PreDestroy` for advanced features
+
+You can gradually migrate - mix DI and manual instantiation in the same application.
 
 ## Contributing
 
