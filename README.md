@@ -159,9 +159,9 @@ public class UserController {
         Optional<User> user = userService.findByEmail(email);
         
         if (user.isPresent()) {
-            return Response.json(Map.of("user", user.get()));
+            return Response.json(JSON.of("user", user.get()));
         } else {
-            return Response.json(Map.of("error", "User not found")).status(404);
+            return Response.json(JSON.of("error", "User not found")).status(404);
         }
     }
 }
