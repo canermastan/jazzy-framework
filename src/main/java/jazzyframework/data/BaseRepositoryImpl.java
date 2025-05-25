@@ -12,6 +12,8 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 /**
@@ -385,5 +387,48 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
     @Override
     public void deleteAllInBatch() {
         deleteAll();
+    }
+    
+    /**
+     * Helper method to execute operations in a transaction with proper rollback handling.
+     * 
+     * @param operation the operation to execute
+     * @param <R> the return type
+     * @return the result of the operation
+     */
+    protected <R> R executeInTransaction(Function<Session, R> operation) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            try {
+                R result = operation.apply(session);
+                transaction.commit();
+                return result;
+            } catch (Exception e) {
+                if (transaction.isActive()) {
+                    transaction.rollback();
+                }
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Helper method to execute void operations in a transaction with proper rollback handling.
+     * 
+     * @param operation the operation to execute
+     */
+    protected void executeInTransactionVoid(Consumer<Session> operation) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            try {
+                operation.accept(session);
+                transaction.commit();
+            } catch (Exception e) {
+                if (transaction.isActive()) {
+                    transaction.rollback();
+                }
+                throw e;
+            }
+        }
     }
 } 
