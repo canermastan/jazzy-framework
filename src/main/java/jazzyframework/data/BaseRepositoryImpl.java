@@ -110,11 +110,8 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
             throw new IllegalArgumentException("Entity must not be null");
         }
 
-        try (Session session = sessionFactory.openSession()) {
-            Transaction transaction = session.beginTransaction();
-            T savedEntity = session.merge(entity);
-            transaction.commit();
-            return savedEntity;
+        try {
+            return executeInTransaction(session -> session.merge(entity));
         } catch (Exception e) {
             logger.severe("Error saving entity: " + e.getMessage());
             throw new RuntimeException("Failed to save entity", e);
@@ -154,11 +151,8 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
             throw new IllegalArgumentException("ID must not be null");
         }
 
-        try (Session session = sessionFactory.openSession()) {
-            Transaction transaction = session.beginTransaction();
-            T entity = session.get(entityClass, id);
-            transaction.commit();
-            return Optional.ofNullable(entity);
+        try {
+            return executeInTransaction(session -> Optional.ofNullable(session.get(entityClass, id)));
         } catch (Exception e) {
             logger.severe("Error finding entity by ID: " + e.getMessage());
             throw new RuntimeException("Failed to find entity", e);
@@ -246,13 +240,13 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
             throw new IllegalArgumentException("ID must not be null");
         }
 
-        try (Session session = sessionFactory.openSession()) {
-            Transaction transaction = session.beginTransaction();
-            T entity = session.get(entityClass, id);
-            if (entity != null) {
-                session.remove(entity);
-            }
-            transaction.commit();
+        try {
+            executeInTransactionVoid(session -> {
+                T entity = session.get(entityClass, id);
+                if (entity != null) {
+                    session.remove(entity);
+                }
+            });
             logger.fine("Deleted entity with ID: " + id);
         } catch (Exception e) {
             logger.severe("Error deleting entity by ID: " + e.getMessage());
