@@ -2,9 +2,9 @@
 
 Jazzy is a lightweight web framework for Java. It provides a minimal and easy-to-understand API for developing fast web applications with a structure inspired by Laravel and Spring Boot.
 
-## 🚀 Latest Updates (v0.3.0)
+## 🚀 Latest Updates (v0.3.1)
 
-**NEW: Database Integration & ORM System!**
+**NEW: Bug Fixes & API Improvements!**
 
 Jazzy Framework 0.3 introduces comprehensive database integration with Spring Data JPA-like features:
 
@@ -21,6 +21,7 @@ Jazzy Framework 0.3 introduces comprehensive database integration with Spring Da
 
 | Version | Release Date | Key Features |
 |---------|-------------|--------------|
+| **0.3.1** | 2025 | 🔧 **Bug Fixes & Improvements** - Fixed deprecated Hibernate APIs, enhanced transaction management, dependency updates |
 | **0.3.0** | 2025 | 🆕 **Database Integration** - Hibernate/JPA, Spring Data JPA-like repositories, automatic query generation, transaction management |
 | **0.2.0** | 2025 | 🆕 **Dependency Injection System**, Spring-like annotations, automatic component discovery, lifecycle management |
 | **0.1.0** | 2025 | Core framework with routing, request/response handling, JSON utilities, validation system, metrics |
@@ -58,6 +59,7 @@ Jazzy Framework 0.3 introduces comprehensive database integration with Spring Da
 - **Transaction Management**: Automatic transaction handling with proper rollback
 - **Entity Discovery**: Automatic entity scanning and configuration
 - **Connection Pooling**: HikariCP for production-ready database connections
+- **Multiple Database Support**: H2, PostgreSQL, MySQL, Oracle support
 
 ## Quick Start
 
