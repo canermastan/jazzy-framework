@@ -6,7 +6,7 @@
 
   <groupId>com.jazzyframework</groupId>
   <artifactId>jazzy-framework</artifactId>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
 
   <name>Jazzy Framework</name>
   <description>A lightweight web framework for Java with a low learning curve</description>
@@ -39,6 +39,21 @@
      <version>5.8.0</version>
      <scope>test</scope>
   </dependency>
+  
+  <!-- Mockito for mocking in tests -->
+  <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.7.0</version>
+      <scope>test</scope>
+  </dependency>
+  <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>5.7.0</version>
+      <scope>test</scope>
+  </dependency>
+  
       <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
@@ -56,6 +71,43 @@
       <groupId>org.picocontainer</groupId>
       <artifactId>picocontainer</artifactId>
       <version>2.15</version>
+  </dependency>
+  
+  <!-- Hibernate ORM for Database Integration -->
+  <dependency>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <version>6.4.1.Final</version>
+  </dependency>
+  
+  <!-- HikariCP Connection Pool -->
+  <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+      <version>5.1.0</version>
+  </dependency>
+  
+  <!-- H2 Database for Development -->
+  <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>2.2.224</version>
+  </dependency>
+  
+  <!-- MySQL Driver (optional for production) -->
+  <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>8.0.33</version>
+      <scope>runtime</scope>
+  </dependency>
+  
+  <!-- PostgreSQL Driver (optional for production) -->
+  <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>42.7.1</version>
+      <scope>runtime</scope>
   </dependency>
   </dependencies>
 

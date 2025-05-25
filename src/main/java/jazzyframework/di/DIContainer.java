@@ -1,6 +1,10 @@
 package jazzyframework.di;
 
 import jazzyframework.di.annotations.Named;
+import jazzyframework.data.RepositoryScanner;
+import jazzyframework.data.RepositoryFactory;
+import jazzyframework.data.HibernateConfig;
+import jazzyframework.core.PropertyLoader;
 import org.picocontainer.DefaultPicoContainer;
 import org.picocontainer.MutablePicoContainer;
 import org.picocontainer.PicoContainer;
@@ -26,17 +30,21 @@ import java.util.stream.Collectors;
  *   <li>Lifecycle management with {@code @PostConstruct} and {@code @PreDestroy}</li>
  *   <li>Singleton and Prototype scopes</li>
  *   <li>Constructor-based dependency injection</li>
+ *   <li>Database integration with automatic repository discovery</li>
+ *   <li>Property-based configuration management</li>
  * </ul>
  * 
  * <p>All components are automatically discovered and registered at server startup time.
  * The container uses PicoContainer as the underlying DI engine while providing
  * Spring-like annotation support and automatic configuration.
  * 
- * @since 0.2
+ * @since 0.3
  * @author Caner Mastan
  */
 public class DIContainer {
     private static final Logger logger = Logger.getLogger(DIContainer.class.getName());
+    private static DIContainer instance;
+    
     private final MutablePicoContainer container;
     private final ComponentScanner scanner;
     final Map<String, BeanDefinition> beanDefinitions;
@@ -56,6 +64,18 @@ public class DIContainer {
     }
     
     /**
+     * Gets the singleton instance of the DI container.
+     * 
+     * @return the singleton DI container instance
+     */
+    public static synchronized DIContainer getInstance() {
+        if (instance == null) {
+            instance = new DIContainer();
+        }
+        return instance;
+    }
+    
+    /**
      * Initializes the DI container with automatic component discovery.
      * Automatically scans all packages starting from the main class package.
      * This should be called once at server startup.
@@ -68,17 +88,154 @@ public class DIContainer {
         
         logger.info("Initializing Advanced DI Container with automatic component discovery...");
         
+        // First, register core infrastructure components
+        registerInfrastructureComponents();
+        
+        // Scan for user components (@Component, @Service, @Controller, etc.)
         List<BeanDefinition> componentBeans = scanner.scanAllPackages();
         
         for (BeanDefinition beanDef : componentBeans) {
             registerBeanDefinition(beanDef);
         }
         
+        // Initialize database infrastructure if enabled
+        initializeDatabaseInfrastructure();
+        
+        // Scan and register repositories
+        registerRepositories();
+        
         validateDependencies();
         
         initialized = true;
         logger.info("Advanced DI Container initialized with " + beanDefinitions.size() + 
                    " components automatically discovered");
+    }
+    
+    /**
+     * Registers core infrastructure components.
+     */
+    private void registerInfrastructureComponents() {
+        logger.info("Registering core infrastructure components...");
+        
+        // Register PropertyLoader as singleton
+        PropertyLoader propertyLoader = PropertyLoader.getInstance();
+        BeanDefinition propertyLoaderDef = new BeanDefinition(PropertyLoader.class);
+        propertyLoaderDef.setSingletonInstance(propertyLoader);
+        registerBeanDefinition(propertyLoaderDef);
+        
+        logger.info("Core infrastructure components registered");
+    }
+    
+    /**
+     * Initializes database infrastructure if enabled.
+     */
+    private void initializeDatabaseInfrastructure() {
+        PropertyLoader propertyLoader = PropertyLoader.getInstance();
+        
+        if (!propertyLoader.isDatabaseEnabled()) {
+            logger.info("Database is disabled, skipping database infrastructure initialization");
+            return;
+        }
+        
+        logger.info("Initializing database infrastructure...");
+        
+        try {
+            // Register HibernateConfig
+            BeanDefinition hibernateConfigDef = new BeanDefinition(HibernateConfig.class);
+            registerBeanDefinition(hibernateConfigDef);
+            
+            // Create and initialize HibernateConfig instance
+            HibernateConfig hibernateConfig = createBean(hibernateConfigDef);
+            hibernateConfigDef.setSingletonInstance(hibernateConfig);
+            
+            // Register RepositoryFactory
+            BeanDefinition repositoryFactoryDef = new BeanDefinition(RepositoryFactory.class);
+            registerBeanDefinition(repositoryFactoryDef);
+            
+            logger.info("Database infrastructure initialized successfully");
+        } catch (Exception e) {
+            logger.severe("Failed to initialize database infrastructure: " + e.getMessage());
+            throw new RuntimeException("Database initialization failed", e);
+        }
+    }
+    
+    /**
+     * Scans and registers repository interfaces.
+     */
+    private void registerRepositories() {
+        PropertyLoader propertyLoader = PropertyLoader.getInstance();
+        
+        if (!propertyLoader.isDatabaseEnabled()) {
+            logger.info("Database is disabled, skipping repository scanning");
+            return;
+        }
+        
+        logger.info("Scanning for repository interfaces...");
+        
+        try {
+            RepositoryFactory repositoryFactory = getComponentInternal(RepositoryFactory.class);
+            RepositoryScanner repositoryScanner = new RepositoryScanner(repositoryFactory);
+            
+            List<BeanDefinition> repositoryBeans = repositoryScanner.createRepositoryBeans();
+            
+            for (BeanDefinition repositoryBean : repositoryBeans) {
+                // Get the actual repository interface and implementation
+                RepositoryScanner.RepositoryBeanWrapper wrapper = 
+                    (RepositoryScanner.RepositoryBeanWrapper) repositoryBean.getSingletonInstance();
+                
+                Class<?> repositoryInterface = wrapper.getRepositoryInterface();
+                Object repositoryImpl = wrapper.getRepositoryImpl();
+                
+                // Create a proper bean definition for the repository interface
+                BeanDefinition repoDef = new BeanDefinition(repositoryInterface);
+                repoDef.setSingletonInstance(repositoryImpl);
+                
+                registerBeanDefinition(repoDef);
+                
+                logger.info("Registered repository: " + repositoryInterface.getSimpleName());
+            }
+            
+            logger.info("Repository scanning completed. Found " + repositoryBeans.size() + " repositories");
+        } catch (Exception e) {
+            logger.severe("Failed to scan repositories: " + e.getMessage());
+            throw new RuntimeException("Repository scanning failed", e);
+        }
+    }
+    
+    /**
+     * Internal method to get component without initialization check.
+     * Used during container initialization to avoid chicken-and-egg problems.
+     * 
+     * @param type the class type
+     * @param <T> the type parameter
+     * @return the component instance with dependencies injected
+     */
+    private <T> T getComponentInternal(Class<T> type) {
+        List<BeanDefinition> candidates = typeIndex.get(type);
+        if (candidates == null || candidates.isEmpty()) {
+            return createInstance(type);
+        }
+        
+        BeanDefinition beanDef = selectCandidate(candidates, type);
+        return createBean(beanDef);
+    }
+    
+    /**
+     * Internal method to get component by name without initialization check.
+     * Used during container initialization to avoid chicken-and-egg problems.
+     * 
+     * @param name the component name
+     * @param <T> the type parameter
+     * @return the component instance
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T getComponentInternal(String name) {
+        BeanDefinition beanDef = beanDefinitions.get(name);
+        if (beanDef == null) {
+            throw new IllegalArgumentException("No bean found with name: " + name);
+        }
+        
+        return (T) createBean(beanDef);
     }
     
     /**
@@ -255,9 +412,9 @@ public class DIContainer {
                 
                 Named namedAnnotation = param.getAnnotation(Named.class);
                 if (namedAnnotation != null) {
-                    args[i] = getComponent(namedAnnotation.value());
+                    args[i] = getComponentInternal(namedAnnotation.value());
                 } else {
-                    args[i] = getComponent(paramType);
+                    args[i] = getComponentInternal(paramType);
                 }
             }
             
@@ -345,6 +502,14 @@ public class DIContainer {
         initialized = false;
         
         logger.info("DI Container disposed");
+    }
+    
+    /**
+     * Shuts down the container and releases all resources.
+     * This is an alias for dispose() method.
+     */
+    public void shutdown() {
+        dispose();
     }
     
     /**

@@ -4,7 +4,7 @@ This guide explains the steps needed to start working with Jazzy Framework. It c
 
 ## Requirements
 
-- Java 8 or higher
+- Java 17 or higher
 - Maven
 
 ## Installation
@@ -15,7 +15,7 @@ Jazzy is designed to be used as a Maven project. You can start by adding the Jaz
 <dependency>
     <groupId>com.jazzyframework</groupId>
     <artifactId>jazzy-framework</artifactId>
-    <version>0.1.0</version>
+    <version>0.3.0</version>
 </dependency>
 ```
 

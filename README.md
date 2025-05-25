@@ -2,24 +2,26 @@
 
 Jazzy is a lightweight web framework for Java. It provides a minimal and easy-to-understand API for developing fast web applications with a structure inspired by Laravel and Spring Boot.
 
-## 🚀 Latest Updates (v0.2.0)
+## 🚀 Latest Updates (v0.3.0)
 
-**NEW: Enterprise-Level Dependency Injection System!**
+**NEW: Database Integration & ORM System!**
 
-Jazzy Framework 0.2 introduces a comprehensive Spring-like dependency injection system with zero configuration:
+Jazzy Framework 0.3 introduces comprehensive database integration with Spring Data JPA-like features:
 
-- 🔧 **Zero Configuration DI**: Automatic component discovery
-- 📦 **Spring-like Annotations**: @Component, @Named, @Primary, @PostConstruct, @PreDestroy
-- 🔌 **Constructor Injection**: Clean, testable dependency injection  
-- ⚖️ **Multiple Implementations**: Handle conflicts with @Named and @Primary
-- 🔄 **Lifecycle Management**: Proper initialization and cleanup
-- 📊 **Scope Management**: @Singleton and @Prototype support
-- 🔗 **Framework Integration**: Seamless integration with routing and controllers
+- 🗄️ **Hibernate Integration**: Full JPA/Hibernate support with automatic configuration
+- 🔍 **Spring Data JPA-like Repositories**: Automatic query generation from method names
+- 📝 **Custom Query Support**: @Query annotation for HQL/JPQL and native SQL
+- 🔄 **Transaction Management**: Automatic transaction handling
+- 🏗️ **Entity Management**: Automatic entity discovery and configuration
+- 📊 **Connection Pooling**: HikariCP integration for production-ready performance
+- 🎯 **Method Name Parsing**: `findByEmail`, `countByActive`, `existsByName` etc.
+- ⚡ **Performance Optimized**: Database-level filtering instead of memory operations
 
 ## Version History
 
 | Version | Release Date | Key Features |
 |---------|-------------|--------------|
+| **0.3.0** | 2025 | 🆕 **Database Integration** - Hibernate/JPA, Spring Data JPA-like repositories, automatic query generation, transaction management |
 | **0.2.0** | 2025 | 🆕 **Dependency Injection System**, Spring-like annotations, automatic component discovery, lifecycle management |
 | **0.1.0** | 2025 | Core framework with routing, request/response handling, JSON utilities, validation system, metrics |
 
@@ -27,7 +29,7 @@ Jazzy Framework 0.2 introduces a comprehensive Spring-like dependency injection 
 
 | Planned Version | Features |
 |----------------|----------|
-| **0.3.0** | 🗄️ **Database Integration** - jOOQ integration, connection pooling, transaction management |
+| **0.4.0** | 🔐 **Security & Authentication** - JWT support, role-based access control, security filters |
 
 ## Features
 
@@ -48,111 +50,166 @@ Jazzy Framework 0.2 introduces a comprehensive Spring-like dependency injection 
 - **Scope Management**: @Singleton (default) and @Prototype scopes
 - **Framework Integration**: DI works seamlessly with controllers and routing
 
+### Database Integration (v0.3+)
+- **Hibernate/JPA Integration**: Full ORM support with automatic configuration
+- **Spring Data JPA-like Repositories**: Familiar repository pattern with automatic implementation
+- **Method Name Parsing**: Automatic query generation from method names
+- **Custom Queries**: @Query annotation for HQL/JPQL and native SQL queries
+- **Transaction Management**: Automatic transaction handling with proper rollback
+- **Entity Discovery**: Automatic entity scanning and configuration
+- **Connection Pooling**: HikariCP for production-ready database connections
+
 ## Quick Start
 
-### Basic Application (v0.1 style)
+### Database Application (v0.3 style)
 
 ```java
-// App.java
-package examples.basic;
+// Entity
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(unique = true)
+    private String email;
+    
+    private String name;
+    private String password;
+    private boolean active = true;
+    
+    // getters and setters...
+}
 
-import jazzyframework.core.Config;
-import jazzyframework.core.Server;
-import jazzyframework.routing.Router;
+// Repository with automatic query generation
+public interface UserRepository extends BaseRepository<User, Long> {
+    // Automatic query: SELECT u FROM User u WHERE u.email = :email
+    Optional<User> findByEmail(String email);
+    
+    // Automatic query: SELECT u FROM User u WHERE u.active = :active
+    List<User> findByActive(boolean active);
+    
+    // Automatic query: SELECT COUNT(u) FROM User u WHERE u.active = :active
+    long countByActive(boolean active);
+    
+    // Custom query with @Query annotation
+    @Query("SELECT u FROM User u WHERE u.email = :email AND u.active = true")
+    Optional<User> findActiveUserByEmail(String email);
+    
+    // Native SQL query
+    @Query(value = "SELECT * FROM users WHERE email = ?1", nativeQuery = true)
+    Optional<User> findByEmailNative(String email);
+    
+    // Update query
+    @Query("UPDATE User u SET u.active = :active WHERE u.email = :email")
+    @Modifying
+    int updateUserActiveStatus(String email, boolean active);
+}
 
-public class App 
-{
-    public static void main( String[] args )
-    {
+// Service
+@Component
+public class UserService {
+    private final UserRepository userRepository;
+    
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+    
+    public User createUser(String name, String email, String password) {
+        // Check if user already exists
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("User with email " + email + " already exists");
+        }
+        
+        User user = new User();
+        user.setName(name);
+        user.setEmail(email);
+        user.setPassword(password);
+        
+        return userRepository.save(user);
+    }
+    
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+    
+    public List<User> findAllUsers() {
+        return userRepository.findAll();
+    }
+}
+
+// Controller
+@Component
+public class UserController {
+    private final UserService userService;
+    
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+    
+    public Response createUser(Request request) {
+        User user = request.toObject(User.class);
+        User createdUser = userService.createUser(user.getName(), user.getEmail(), user.getPassword());
+        return Response.json(JSON.of("result", createdUser));
+    }
+    
+    public Response getUserByEmail(Request request) {
+        String email = request.query("email");
+        Optional<User> user = userService.findByEmail(email);
+        
+        if (user.isPresent()) {
+            return Response.json(Map.of("user", user.get()));
+        } else {
+            return Response.json(Map.of("error", "User not found")).status(404);
+        }
+    }
+}
+
+// Main class
+public class App {
+    public static void main(String[] args) {
         Config config = new Config();
-        config.setEnableMetrics(true); // "/metrics" endpoint is automatically added
-        config.setServerPort(8088);
-
+        config.setEnableMetrics(true);
+        config.setServerPort(8080);
+        
         Router router = new Router();
         
         // User routes
-        router.GET("/users/{id}", "getUserById", UserController.class);
         router.GET("/users", "getAllUsers", UserController.class);
+        router.GET("/users/search", "getUserByEmail", UserController.class);
         router.POST("/users", "createUser", UserController.class);
-        router.PUT("/users/{id}", "updateUser", UserController.class);
-        router.DELETE("/users/{id}", "deleteUser", UserController.class);
         
-        // Start the server
         Server server = new Server(router, config);
         server.start(config.getServerPort());
     }
 }
 ```
 
-### With Dependency Injection (v0.2 style)
+### Configuration (application.properties)
 
-```java
-// Repository Component
-@Component
-public class UserRepository {
-    private final List<User> users = new ArrayList<>();
-    
-    @PostConstruct
-    public void init() {
-        System.out.println("UserRepository initialized");
-    }
-    
-    public List<User> findAll() {
-        return new ArrayList<>(users);
-    }
-}
+```properties
+# Database Configuration
+jazzy.datasource.url=jdbc:h2:mem:testdb
+jazzy.datasource.username=sa
+jazzy.datasource.password=
+jazzy.datasource.driver-class-name=org.h2.Driver
 
-// Service Component  
-@Component
-public class UserService {
-    private final UserRepository repository;
-    
-    // Constructor injection - DI container automatically injects UserRepository
-    public UserService(UserRepository repository) {
-        this.repository = repository;
-    }
-    
-    public List<User> getAllUsers() {
-        return repository.findAll();
-    }
-}
+# JPA/Hibernate Configuration
+jazzy.jpa.hibernate.ddl-auto=create-drop
+jazzy.jpa.show-sql=true
+jazzy.jpa.hibernate.dialect=org.hibernate.dialect.H2Dialect
 
-// Controller Component
-@Component
-public class UserController {
-    private final UserService userService;
-    
-    // Constructor injection - DI container automatically injects UserService
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
-
-    public Response getUsers(Request request) {
-        return Response.json(userService.getAllUsers());
-    }
-}
-
-// Application - DI works automatically!
-public class App {
-    public static void main(String[] args) {
-        Config config = new Config();
-        Router router = new Router();
-        
-        // Define routes - controllers will be created with DI
-        router.GET("/users", "getUsers", UserController.class);
-        
-        // DI is automatically enabled and configured
-        Server server = new Server(router, config);
-        server.start(8080);
-    }
-}
+# H2 Console (for development)
+jazzy.h2.console.enabled=true
+jazzy.h2.console.path=/h2-console
 ```
 
-That's it! The DI container automatically:
-- Discovers all `@Component` classes
-- Resolves dependencies between them  
-- Creates instances with proper injection
-- Manages lifecycle callbacks
+That's it! The framework automatically:
+- Discovers entities and repositories
+- Creates repository implementations with query parsing
+- Manages database connections and transactions
+- Provides Spring Data JPA-like functionality
 
 ## Documentation
 
@@ -174,6 +231,11 @@ Complete documentation for Jazzy Framework is available on our GitHub Pages site
 - [Dependency Injection Guide](https://canermastan.github.io/jazzy-framework/dependency-injection)
 - [DI Examples](https://canermastan.github.io/jazzy-framework/di-examples)
 
+**Database Integration (v0.3+):**
+- [Database Integration Guide](https://canermastan.github.io/jazzy-framework/database-integration)
+- [Repository Pattern](https://canermastan.github.io/jazzy-framework/repositories)
+- [Query Methods](https://canermastan.github.io/jazzy-framework/query-methods)
+
 ## Development
 
 Jazzy is developed with Maven. After cloning the project, you can use the following commands:
@@ -190,6 +252,9 @@ mvn exec:java -Dexec.mainClass="examples.basic.App"
 
 # Run the DI example application (v0.2+)
 mvn exec:java -Dexec.mainClass="examples.di.App"
+
+# Run the database example application (v0.3+)
+mvn exec:java -Dexec.mainClass="examples.database.DatabaseExampleApp"
 ```
 
 ## Project Structure
@@ -199,6 +264,7 @@ mvn exec:java -Dexec.mainClass="examples.di.App"
   - `RequestHandler.java`: HTTP request processor with DI integration
   - `Config.java`: Configuration management
   - `Metrics.java`: Performance metrics
+  - `PropertyLoader.java`: Configuration property management (v0.3+)
 - `routing/`: Routing system
   - `Router.java`: Route management with DI container support
   - `Route.java`: Route data structure
@@ -213,11 +279,21 @@ mvn exec:java -Dexec.mainClass="examples.di.App"
   - `ComponentScanner.java`: Automatic component scanning
   - `BeanDefinition.java`: Bean metadata and lifecycle management
   - `annotations/`: DI annotations (@Component, @Named, @Primary, etc.)
+- `data/`: Database integration system (v0.3+)
+  - `BaseRepository.java`: Base repository interface
+  - `BaseRepositoryImpl.java`: Default repository implementation
+  - `RepositoryFactory.java`: Repository proxy creation
+  - `QueryMethodParser.java`: Method name to query parsing
+  - `HibernateConfig.java`: Hibernate/JPA configuration
+  - `EntityScanner.java`: Automatic entity discovery
+  - `RepositoryScanner.java`: Repository interface scanning
+  - `annotations/`: Database annotations (@Query, @Modifying, @QueryHint)
 - `controllers/`: System controllers
   - `MetricsController.java`: Metrics reporting
 - `examples/`: Example applications
-  - `basic/`: A simple web API example (v0.1 style)
-  - `di/`: Dependency injection example (v0.2 style)
+  - `basic/`: Basic framework usage examples
+  - `di/`: Dependency injection examples (v0.2+)
+  - `database/`: Database integration examples (v0.3+)
 
 ## Tests
 
