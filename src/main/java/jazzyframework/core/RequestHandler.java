@@ -220,23 +220,32 @@ public class RequestHandler implements Runnable {
                 } else {
                     out.write(Response.json(result).toHttpResponse());
                 }
+                
+                out.flush();
+                Metrics.successfulRequests.incrementAndGet();
+                logger.info("Response sent successfully.");
+                long duration = System.currentTimeMillis() - startTime;
+                Metrics.totalResponseTime.addAndGet(duration);
+                
             } catch (IllegalArgumentException e) {
                 logger.warning("Bad request: " + e.getMessage());
                 out.write(ErrorResponse.badRequest(e.getMessage()).toHttpResponse());
+                out.flush();
+            } catch (Exception e) {
+                logger.severe("Error executing controller method: " + e.getMessage());
+                e.printStackTrace();
+                out.write(ErrorResponse.serverError("Internal server error: " + e.getMessage()).toHttpResponse());
+                out.flush();
+                Metrics.failedRequests.incrementAndGet();
             }
             
-            out.flush();
-            Metrics.successfulRequests.incrementAndGet();
-            logger.info("Response sent successfully.");
-            long duration = System.currentTimeMillis() - startTime;
-            Metrics.totalResponseTime.addAndGet(duration);
         } catch (Exception e) {
             Metrics.failedRequests.incrementAndGet();
             logger.severe("Exception handling request: " + e.getMessage());
             e.printStackTrace();
             try {
                 BufferedWriter out = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
-                out.write(ErrorResponse.serverError(e.getMessage()).toHttpResponse());
+                out.write(ErrorResponse.serverError("Request processing failed: " + e.getMessage()).toHttpResponse());
                 out.flush();
             } catch (Exception ex) {
                 logger.severe("Error sending error response: " + ex.getMessage());

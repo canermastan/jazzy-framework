@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import jazzyframework.http.Request;
+
 public class Validator {
     private final Map<String, Object> data;
     private final Map<String, List<ValidationRule>> rules;
@@ -28,6 +30,37 @@ public class Validator {
             for (Map.Entry<String, ?> entry : data.entrySet()) {
                 this.data.put(entry.getKey(), entry.getValue());
             }
+        }
+    }
+    
+    /**
+     * Creates a new Validator for the specified Request.
+     * Extracts validation data from query parameters, path parameters, and JSON body.
+     * 
+     * @param request The request to validate
+     */
+    public Validator(Request request) {
+        this.data = new HashMap<>();
+        this.rules = new HashMap<>();
+        
+        // Add query parameters
+        if (request.getQueryParams() != null) {
+            this.data.putAll(request.getQueryParams());
+        }
+        
+        // Add path parameters
+        if (request.getPathParams() != null) {
+            this.data.putAll(request.getPathParams());
+        }
+        
+        // Add JSON body data if present
+        try {
+            Map<String, Object> jsonData = request.parseJson();
+            if (jsonData != null) {
+                this.data.putAll(jsonData);
+            }
+        } catch (Exception e) {
+            // Ignore JSON parsing errors during validation setup
         }
     }
     

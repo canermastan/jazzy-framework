@@ -198,6 +198,16 @@ public class Request {
     }
     
     /**
+     * Parses the request body as JSON and returns it as a Map.
+     * This is an alias for parseJson() method.
+     * 
+     * @return The parsed JSON as a Map, or an empty Map if the body is empty or not valid JSON
+     */
+    public Map<String, Object> json() {
+        return parseJson();
+    }
+    
+    /**
      * Parses the request body as JSON and returns it as an object of the specified class.
      * 
      * @param <T> The type to convert to
@@ -217,19 +227,12 @@ public class Request {
     }
     
     /**
-     * @deprecated Use {@link #parseJson()} instead
+     * Creates a validator for this request.
+     * 
+     * @return A new validator
      */
-    @Deprecated
-    public Map<String, Object> json() {
-        return parseJson();
-    }
-    
-    /**
-     * @deprecated Use {@link #toObject(Class)} instead
-     */
-    @Deprecated
-    public <T> T json(Class<T> clazz) {
-        return toObject(clazz);
+    public Validator validator() {
+        return new Validator(this);
     }
     
     /**
@@ -237,28 +240,8 @@ public class Request {
      * 
      * @return A new validator
      */
-    public Validator validator() {
-        String contentType = header("Content-Type");
-        boolean isJson = contentType != null && contentType.toLowerCase().contains("application/json");
-        
-        Map<String, Object> dataToValidate = new HashMap<>();
-        
-        // Add query parameters to data
-        for (Map.Entry<String, String> entry : queryParams.entrySet()) {
-            dataToValidate.put(entry.getKey(), entry.getValue());
-        }
-        
-        // If there's JSON body, add those fields too, potentially overriding query params
-        if (isJson && body != null && !body.isEmpty()) {
-            try {
-                Map<String, Object> jsonData = parseJson();
-                dataToValidate.putAll(jsonData);
-            } catch (Exception e) {
-                // Ignore JSON parsing errors in validation
-            }
-        }
-        
-        return new Validator(dataToValidate);
+    public Validator validate() {
+        return new Validator(this);
     }
     
     /**
