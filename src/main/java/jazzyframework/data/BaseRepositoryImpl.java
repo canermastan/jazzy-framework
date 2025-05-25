@@ -290,7 +290,7 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
 
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
-            Query<?> query = session.createQuery( // FIXME: deprecated method
+            var query = session.createMutationQuery(
                 "DELETE FROM " + entityName + " e WHERE e." + idFieldName + " IN (:ids)");
             query.setParameterList("ids", idList);
             int deletedCount = query.executeUpdate();
@@ -329,7 +329,7 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
     public void deleteAll() {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
-            Query<?> query = session.createQuery("DELETE FROM " + entityName); // FIXME: deprecated method
+            var query = session.createMutationQuery("DELETE FROM " + entityName);
             int deletedCount = query.executeUpdate();
             transaction.commit();
             logger.fine("Deleted all " + deletedCount + " entities of type: " + entityName);
