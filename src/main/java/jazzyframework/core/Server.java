@@ -9,6 +9,7 @@ import jazzyframework.controllers.MetricsController;
 import jazzyframework.data.CrudProcessor;
 import jazzyframework.di.DIContainer;
 import jazzyframework.routing.Router;
+import jazzyframework.security.AuthProcessor;
 
 /**
  * The main server class of the Jazzy Framework.
@@ -50,6 +51,9 @@ public class Server {
         
         // Process @Crud annotations after DI initialization
         processCrudAnnotations();
+        
+        // Process @EnableJazzyAuth annotations after DI initialization
+        processAuthAnnotations();
 
         if (config.isEnableMetrics()) {
             router.addRoute("GET", "/metrics", "getMetrics", MetricsController.class);
@@ -81,6 +85,21 @@ public class Server {
             logger.warning("Failed to process @Crud annotations: " + e.getMessage());
             e.printStackTrace();
             // Don't fail startup if CRUD processing fails
+        }
+    }
+
+    /**
+     * Processes @EnableJazzyAuth annotations and automatically configures authentication.
+     */
+    private void processAuthAnnotations() {
+        try {
+            AuthProcessor authProcessor = new AuthProcessor(router, diContainer);
+            authProcessor.processAuthAnnotations();
+            logger.info("@EnableJazzyAuth annotations processed and authentication configured");
+        } catch (Exception e) {
+            logger.warning("Failed to process @EnableJazzyAuth annotations: " + e.getMessage());
+            e.printStackTrace();
+            // Don't fail startup if auth processing fails
         }
     }
 

@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -473,6 +474,47 @@ public class DIContainer {
      */
     public Map<String, BeanDefinition> getBeanDefinitions() {
         return new HashMap<>(beanDefinitions);
+    }
+    
+    /**
+     * Gets all registered classes.
+     * 
+     * @return set of all registered classes
+     */
+    public Set<Class<?>> getAllRegisteredClasses() {
+        return beanDefinitions.values().stream()
+            .map(BeanDefinition::getBeanClass)
+            .collect(Collectors.toSet());
+    }
+    
+    /**
+     * Gets a bean instance by class type (alias for getComponent).
+     * 
+     * @param type the class type
+     * @param <T> the type parameter
+     * @return the component instance
+     */
+    public <T> T getBean(Class<T> type) {
+        return getComponent(type);
+    }
+    
+    /**
+     * Registers a pre-created instance as a singleton bean.
+     * 
+     * @param type the class type
+     * @param instance the instance to register
+     * @param <T> the type parameter
+     */
+    public <T> void registerInstance(Class<T> type, T instance) {
+        BeanDefinition beanDef = new BeanDefinition(type);
+        beanDef.setSingletonInstance(instance);
+        registerBeanDefinition(beanDef);
+        
+        if (!managedBeans.contains(instance)) {
+            managedBeans.add(instance);
+        }
+        
+        logger.info("Registered singleton instance: " + type.getSimpleName());
     }
     
     /**

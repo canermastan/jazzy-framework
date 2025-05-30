@@ -19,6 +19,7 @@ import jazzyframework.http.Response;
 import jazzyframework.http.validation.ValidationResult;
 import jazzyframework.routing.Route;
 import jazzyframework.routing.Router;
+import jazzyframework.security.SecurityInterceptor;
 
 /**
  * Handles individual HTTP requests received by the server.
@@ -190,6 +191,25 @@ public class RequestHandler implements Runnable {
             }
             
             Request request = new Request(method, path, headers, pathParams, queryParams, body);
+            
+            // Security interceptor check
+            if (router.getDIContainer() != null) {
+                try {
+                    SecurityInterceptor securityInterceptor = router.getDIContainer().getComponent(SecurityInterceptor.class);
+                    Response securityResponse = securityInterceptor.intercept(request);
+                    if (securityResponse != null) {
+                        // Security check failed, return security response
+                        out.write(securityResponse.toHttpResponse());
+                        out.flush();
+                        logger.fine("Request blocked by security interceptor");
+                        return;
+                    }
+                    logger.fine("Security check passed");
+                } catch (Exception e) {
+                    // SecurityInterceptor not found or error, continue without security
+                    logger.fine("No SecurityInterceptor found, proceeding without security check");
+                }
+            }
             
             boolean isBodyRequired = method.equals("POST") || method.equals("PUT") || method.equals("PATCH");
             boolean isBodyEmpty = body == null || body.trim().isEmpty();
