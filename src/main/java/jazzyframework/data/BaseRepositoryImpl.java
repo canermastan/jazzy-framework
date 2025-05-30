@@ -12,6 +12,8 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 /**
@@ -108,11 +110,8 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
             throw new IllegalArgumentException("Entity must not be null");
         }
 
-        try (Session session = sessionFactory.openSession()) {
-            Transaction transaction = session.beginTransaction();
-            T savedEntity = session.merge(entity);
-            transaction.commit();
-            return savedEntity;
+        try {
+            return executeInTransaction(session -> session.merge(entity));
         } catch (Exception e) {
             logger.severe("Error saving entity: " + e.getMessage());
             throw new RuntimeException("Failed to save entity", e);
@@ -152,11 +151,8 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
             throw new IllegalArgumentException("ID must not be null");
         }
 
-        try (Session session = sessionFactory.openSession()) {
-            Transaction transaction = session.beginTransaction();
-            T entity = session.get(entityClass, id);
-            transaction.commit();
-            return Optional.ofNullable(entity);
+        try {
+            return executeInTransaction(session -> Optional.ofNullable(session.get(entityClass, id)));
         } catch (Exception e) {
             logger.severe("Error finding entity by ID: " + e.getMessage());
             throw new RuntimeException("Failed to find entity", e);
@@ -244,13 +240,13 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
             throw new IllegalArgumentException("ID must not be null");
         }
 
-        try (Session session = sessionFactory.openSession()) {
-            Transaction transaction = session.beginTransaction();
-            T entity = session.get(entityClass, id);
-            if (entity != null) {
-                session.remove(entity);
-            }
-            transaction.commit();
+        try {
+            executeInTransactionVoid(session -> {
+                T entity = session.get(entityClass, id);
+                if (entity != null) {
+                    session.remove(entity);
+                }
+            });
             logger.fine("Deleted entity with ID: " + id);
         } catch (Exception e) {
             logger.severe("Error deleting entity by ID: " + e.getMessage());
@@ -290,7 +286,7 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
 
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
-            Query<?> query = session.createQuery( // FIXME: deprecated method
+            var query = session.createMutationQuery(
                 "DELETE FROM " + entityName + " e WHERE e." + idFieldName + " IN (:ids)");
             query.setParameterList("ids", idList);
             int deletedCount = query.executeUpdate();
@@ -329,7 +325,7 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
     public void deleteAll() {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
-            Query<?> query = session.createQuery("DELETE FROM " + entityName); // FIXME: deprecated method
+            var query = session.createMutationQuery("DELETE FROM " + entityName);
             int deletedCount = query.executeUpdate();
             transaction.commit();
             logger.fine("Deleted all " + deletedCount + " entities of type: " + entityName);
@@ -385,5 +381,48 @@ public class BaseRepositoryImpl<T, ID> implements BaseRepository<T, ID> {
     @Override
     public void deleteAllInBatch() {
         deleteAll();
+    }
+    
+    /**
+     * Helper method to execute operations in a transaction with proper rollback handling.
+     * 
+     * @param operation the operation to execute
+     * @param <R> the return type
+     * @return the result of the operation
+     */
+    protected <R> R executeInTransaction(Function<Session, R> operation) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            try {
+                R result = operation.apply(session);
+                transaction.commit();
+                return result;
+            } catch (Exception e) {
+                if (transaction.isActive()) {
+                    transaction.rollback();
+                }
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Helper method to execute void operations in a transaction with proper rollback handling.
+     * 
+     * @param operation the operation to execute
+     */
+    protected void executeInTransactionVoid(Consumer<Session> operation) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            try {
+                operation.accept(session);
+                transaction.commit();
+            } catch (Exception e) {
+                if (transaction.isActive()) {
+                    transaction.rollback();
+                }
+                throw e;
+            }
+        }
     }
 } 
