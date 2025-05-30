@@ -6,6 +6,7 @@ import java.net.Socket;
 import java.util.logging.Logger;
 
 import jazzyframework.controllers.MetricsController;
+import jazzyframework.data.CrudProcessor;
 import jazzyframework.di.DIContainer;
 import jazzyframework.routing.Router;
 
@@ -18,6 +19,7 @@ import jazzyframework.routing.Router;
  *   <li>Accepting client connections and delegating requests to appropriate handlers</li>
  *   <li>Automatically initializing dependency injection with component discovery</li>
  *   <li>Registering the metrics endpoint if enabled</li>
+ *   <li>Processing @Crud annotations and auto-generating CRUD endpoints</li>
  *   <li>Managing server lifecycle and cleanup</li>
  * </ul>
  * 
@@ -45,6 +47,9 @@ public class Server {
         this.config = config;
 
         initializeDependencyInjection();
+        
+        // Process @Crud annotations after DI initialization
+        processCrudAnnotations();
 
         if (config.isEnableMetrics()) {
             router.addRoute("GET", "/metrics", "getMetrics", MetricsController.class);
@@ -62,6 +67,21 @@ public class Server {
         
         diContainer.initialize();
         logger.info("Dependency injection enabled with automatic component discovery");
+    }
+    
+    /**
+     * Processes @Crud annotations and automatically generates CRUD endpoints.
+     */
+    private void processCrudAnnotations() {
+        try {
+            CrudProcessor crudProcessor = new CrudProcessor(router, diContainer);
+            crudProcessor.processAllCrudControllers();
+            logger.info("@Crud annotations processed and CRUD endpoints generated");
+        } catch (Exception e) {
+            logger.warning("Failed to process @Crud annotations: " + e.getMessage());
+            e.printStackTrace();
+            // Don't fail startup if CRUD processing fails
+        }
     }
 
     /**
@@ -81,7 +101,7 @@ public class Server {
      */
     public void start(int port) {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            logger.info("Server started on port " + port + " with dependency injection");
+            logger.info("Server started on port " + port + " with dependency injection and auto-CRUD");
             
             while (true) {
                 Socket clientSocket = serverSocket.accept();
