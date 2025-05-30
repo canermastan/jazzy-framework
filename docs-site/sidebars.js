@@ -20,6 +20,7 @@ const sidebars = {
     // Getting Started
     'index',
     'getting-started',
+    'crud',  // ⚡ CRUD Operations - Quick Start Feature
     
     // Core Concepts
     {
