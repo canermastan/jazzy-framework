@@ -20,6 +20,10 @@ const sidebars = {
     // Getting Started
     'index',
     'getting-started',
+    
+    // 🔐 Security & Authentication (NEW in 0.5.0)
+    'authentication',
+    
     'crud',  // ⚡ CRUD Operations - Quick Start Feature
     
     // Core Concepts
@@ -45,7 +49,7 @@ const sidebars = {
       ],
     },
     
-    // Database Integration (NEW in 0.3.0)
+    // Database Integration
     {
       type: 'category',
       label: '🗄️ Database Integration',

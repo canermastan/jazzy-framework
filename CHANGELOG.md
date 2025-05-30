@@ -5,6 +5,60 @@ All notable changes to Jazzy Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-01-27
+
+### Added
+- **🔐 Comprehensive Security & Authentication System**
+  - `@EnableJazzyAuth` annotation for one-line authentication setup
+  - JWT token system with secure generation and validation
+  - `SecurityConfig` abstract class for declarative URL-based security rules
+  - Built-in authentication endpoints: `/register`, `/login`, `/me`
+  - Role-based access control with USER and ADMIN roles
+  - `SecurityInterceptor` for automatic request validation and protection
+
+- **🎟️ JWT Token Management**
+  - Configurable JWT secrets and expiration times
+  - Secure token generation with BCrypt password hashing
+  - Automatic token validation in protected endpoints
+  - Token structure with user ID, email, roles, and timestamps
+
+- **🛡️ SecurityConfig System**
+  - Wildcard pattern support (`*`, `**`) for endpoint matching
+  - Three security levels: public, secure (JWT required), admin (JWT + ADMIN role)
+  - Flexible configuration with method-based security rules
+  - Integration with existing DI container and routing system
+
+- **🚦 Authentication Endpoints**
+  - `POST /api/auth/register` - User registration with automatic password hashing
+  - `POST /api/auth/login` - Authentication with JWT token response
+  - `GET /api/auth/me` - Current user information retrieval
+  - Standardized JSON responses with success/error handling
+
+- **👤 User Entity Validation**
+  - `UserEntityValidator` for automatic entity field validation
+  - Support for EMAIL and USERNAME login methods
+  - Required field checking and entity structure validation
+  - Integration with existing repository pattern
+
+- **🔄 Framework Integration**
+  - `AuthProcessor` for automatic authentication configuration
+  - Enhanced `RequestHandler` with SecurityInterceptor support
+  - Enhanced `Server` with AuthProcessor integration
+  - Enhanced `DIContainer` with component scanning methods
+
+### Changed
+- Updated framework version to 0.5.0
+- Enhanced README.md with comprehensive security documentation
+- Updated project structure documentation with security components
+- Enhanced documentation site with authentication guide
+
+### Technical Details
+- Added 9 new security-related classes in `jazzyframework.security` package
+- Automatic password hashing using BCrypt with secure salts
+- JWT implementation without external dependencies for minimal footprint
+- Pattern-based URL matching with efficient wildcard support
+- Seamless integration with existing CRUD and DI systems
+
 ## [0.3.1] - 2025-01-27
 
 ### Fixed

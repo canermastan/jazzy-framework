@@ -6,7 +6,7 @@
 
   <groupId>com.jazzyframework</groupId>
   <artifactId>jazzy-framework</artifactId>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
 
   <name>Jazzy Framework</name>
   <description>A lightweight web framework for Java with a low learning curve</description>

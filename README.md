@@ -2,25 +2,26 @@
 
 Jazzy is a lightweight web framework for Java. It provides a minimal and easy-to-understand API for developing fast web applications with a structure inspired by Laravel and Spring Boot.
 
-## 🚀 Latest Updates (v0.4.0)
+## 🚀 Latest Updates (v0.5.0)
 
-**NEW: Auto-CRUD System with Zero Boilerplate!**
+**NEW: Security & Authentication System!**
 
-Jazzy Framework 0.4 introduces revolutionary auto-CRUD capabilities that generate complete REST APIs with just annotations:
+Jazzy Framework 0.5 introduces a comprehensive security system with JWT-based authentication:
 
-- 🎯 **@Crud Annotation**: Automatically generates all CRUD endpoints (GET, POST, PUT, DELETE)
-- 🔍 **Smart Search**: Built-in search functionality with configurable fields
-- 📊 **Pagination Support**: Automatic pagination with customizable page sizes
-- 🔄 **Batch Operations**: Support for bulk create, update, delete operations
-- 🎨 **Method Override**: Custom logic with @CrudOverride annotation
-- 📝 **Standardized Responses**: Consistent API response format with ApiResponse
-- ⚡ **Zero Configuration**: Complete REST API with 3 lines of code
-- 🔧 **Highly Configurable**: Fine-tune behavior with comprehensive options
+- 🔐 **@EnableJazzyAuth Annotation**: One-line authentication setup for your applications
+- 🎟️ **JWT Token System**: Secure token generation and validation with configurable expiration
+- 🛡️ **SecurityConfig**: URL-based security rules with wildcard pattern support
+- 👤 **Built-in Auth Endpoints**: Automatic /register, /login, /me endpoints
+- 🔒 **Role-based Access Control**: ADMIN role support with extensible architecture
+- 🚦 **SecurityInterceptor**: Automatic request validation and protection
+- ⚡ **Zero Boilerplate**: Complete authentication system with just annotations
+- 🔄 **Seamless Integration**: Works perfectly with existing DI and CRUD systems
 
 ## Version History
 
 | Version | Release Date | Key Features |
 |---------|-------------|--------------|
+| **0.5.0** | 2025 | 🆕 **Security & Authentication** - JWT authentication, @EnableJazzyAuth annotation, role-based access control, SecurityConfig |
 | **0.4.0** | 2025 | 🆕 **Auto-CRUD System** - @Crud annotation, zero-boilerplate REST APIs, automatic endpoint generation, search & pagination |
 | **0.3.0** | 2025 | 🆕 **Database Integration** - Hibernate/JPA, Spring Data JPA-like repositories, automatic query generation, transaction management |
 | **0.2.0** | 2025 | 🆕 **Dependency Injection System**, Spring-like annotations, automatic component discovery, lifecycle management |
@@ -30,7 +31,7 @@ Jazzy Framework 0.4 introduces revolutionary auto-CRUD capabilities that generat
 
 | Planned Version | Features |
 |----------------|----------|
-| **0.5.0** | 🔐 **Security & Authentication** - JWT support, role-based access control, security filters |
+| **0.6.0** | 🌐 **WebSocket Support** - Real-time communication, WebSocket controllers, broadcasting |
 
 ## Features
 
@@ -72,7 +73,116 @@ Jazzy Framework 0.4 introduces revolutionary auto-CRUD capabilities that generat
 - **Validation Integration**: Built-in input validation for create/update operations
 - **Audit Logging**: Optional audit trail for all CRUD operations
 
+### Security & Authentication (v0.5+)
+- **@EnableJazzyAuth Annotation**: One-annotation authentication setup with automatic endpoint registration
+- **JWT Token System**: Secure token generation, validation, and configurable expiration times
+- **SecurityConfig**: Declarative URL-based security rules with wildcard pattern support (*, **)
+- **Built-in Auth Endpoints**: Automatic /register, /login, /me endpoints with standardized responses
+- **Role-based Access Control**: ADMIN role support with extensible role system
+- **SecurityInterceptor**: Automatic request interception and security validation
+- **Password Security**: Built-in BCrypt password hashing and validation
+- **Seamless Integration**: Works with DI container, repositories, and existing framework components
+- **Flexible Configuration**: Support for custom JWT secrets, expiration times, and base paths
+
 ## Quick Start
+
+### Secure Application with Authentication (v0.5 style) - Latest & Recommended
+
+```java
+// 1. User Entity
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(unique = true)
+    private String email;
+    
+    private String username;
+    private String password;
+    private String role = "USER"; // USER or ADMIN
+    
+    // getters and setters...
+}
+
+// 2. User Repository
+@Component
+public interface UserRepository extends BaseRepository<User, Long> {
+    Optional<User> findByEmail(String email);
+    Optional<User> findByUsername(String username);
+}
+
+// 3. Security Configuration
+@Component
+public class AppSecurityConfig extends SecurityConfig {
+    @Override
+    public void configure() {
+        // Public endpoints (no auth needed)
+        publicEndpoints("/", "/api/auth/**");
+        
+        // Secure endpoints (JWT required)
+        requireAuth("/api/user/**", "/api/protected");
+        
+        // Admin endpoints (JWT + ADMIN role required)
+        requireRole("ADMIN", "/api/admin/**");
+    }
+}
+
+// 4. Main Application - That's it! Full authentication system with 1 annotation!
+@EnableJazzyAuth(
+    userClass = User.class,
+    repositoryClass = UserRepository.class,
+    loginMethod = LoginMethod.EMAIL,
+    jwtSecret = "your-secret-key",
+    jwtExpirationHours = 24,
+    authBasePath = "/api/auth"
+)
+public class AuthApp {
+    public static void main(String[] args) {
+        Config config = new Config();
+        Router router = new Router();
+        
+        // Security is automatically configured!
+        // Available endpoints:
+        // POST /api/auth/register - User registration
+        // POST /api/auth/login    - User login
+        // GET  /api/auth/me       - Current user info
+        
+        Server server = new Server(router, config);
+        server.start(8080);
+    }
+}
+```
+
+**🎉 Result**: You now have a complete authentication system with JWT tokens, role-based access control, and protected endpoints!
+
+### Complete Secure CRUD Application (v0.5 + v0.4)
+
+```java
+// Combine authentication with auto-CRUD for the ultimate experience
+@EnableJazzyAuth(
+    userClass = User.class,
+    repositoryClass = UserRepository.class,
+    loginMethod = LoginMethod.EMAIL
+)
+public class SecureCrudApp {
+    public static void main(String[] args) {
+        Config config = new Config();
+        Router router = new Router();
+        
+        Server server = new Server(router, config);
+        server.start(8080);
+        
+        // You now have:
+        // - Complete authentication system (/api/auth/*)
+        // - Role-based security on all endpoints
+        // - JWT token protection
+        // - Auto-CRUD endpoints (if using @Crud controllers)
+    }
+}
+```
 
 ### Auto-CRUD Application (v0.4 style) - Recommended
 
