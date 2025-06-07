@@ -1,4 +1,4 @@
-# 🎷 Jazzy Framework
+# 🐰 Jazzy Framework
 
 > **A modern, developer-friendly Java web framework that eliminates boilerplate code**  
 > *Write less code, build more features, develop faster*
