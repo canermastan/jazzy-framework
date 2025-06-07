@@ -1,13 +1,15 @@
 # 🎷 Jazzy Framework
 
 > **A modern, developer-friendly Java web framework that eliminates boilerplate code**  
-> *Spring Boot simplicity + Laravel elegance = Jazzy Framework*
+> *Write less code, build more features, develop faster*
 
 [![Java](https://img.shields.io/badge/Java-17+-orange.svg)](https://www.oracle.com/java/)
 [![Maven Central](https://img.shields.io/badge/Maven-Central-blue.svg)](https://search.maven.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 ## ⚡ Why Jazzy?
+
+**Simple enough for anyone to learn, powerful enough to build real applications.**
 
 **Turn this complexity:**
 ```java
