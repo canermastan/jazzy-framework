@@ -1,215 +1,40 @@
-# Jazzy Framework
+# 🎷 Jazzy Framework
 
-Jazzy is a lightweight web framework for Java. It provides a minimal and easy-to-understand API for developing fast web applications with a structure inspired by Laravel and Spring Boot.
+> **A modern, developer-friendly Java web framework that eliminates boilerplate code**  
+> *Spring Boot simplicity + Laravel elegance = Jazzy Framework*
 
-## 🚀 Latest Updates (v0.5.0)
+[![Java](https://img.shields.io/badge/Java-17+-orange.svg)](https://www.oracle.com/java/)
+[![Maven Central](https://img.shields.io/badge/Maven-Central-blue.svg)](https://search.maven.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-**NEW: Security & Authentication System!**
+## ⚡ Why Jazzy?
 
-Jazzy Framework 0.5 introduces a comprehensive security system with JWT-based authentication:
-
-- 🔐 **@EnableJazzyAuth Annotation**: One-line authentication setup for your applications
-- 🎟️ **JWT Token System**: Secure token generation and validation with configurable expiration
-- 🛡️ **SecurityConfig**: URL-based security rules with wildcard pattern support
-- 👤 **Built-in Auth Endpoints**: Automatic /register, /login, /me endpoints
-- 🔒 **Role-based Access Control**: ADMIN role support with extensible architecture
-- 🚦 **SecurityInterceptor**: Automatic request validation and protection
-- ⚡ **Zero Boilerplate**: Complete authentication system with just annotations
-- 🔄 **Seamless Integration**: Works perfectly with existing DI and CRUD systems
-
-## Version History
-
-| Version | Release Date | Key Features |
-|---------|-------------|--------------|
-| **0.5.0** | 2025 | 🆕 **Security & Authentication** - JWT authentication, @EnableJazzyAuth annotation, role-based access control, SecurityConfig |
-| **0.4.0** | 2025 | 🆕 **Auto-CRUD System** - @Crud annotation, zero-boilerplate REST APIs, automatic endpoint generation, search & pagination |
-| **0.3.0** | 2025 | 🆕 **Database Integration** - Hibernate/JPA, Spring Data JPA-like repositories, automatic query generation, transaction management |
-| **0.2.0** | 2025 | 🆕 **Dependency Injection System**, Spring-like annotations, automatic component discovery, lifecycle management |
-| **0.1.0** | 2025 | Core framework with routing, request/response handling, JSON utilities, validation system, metrics |
-
-### 🔮 Upcoming Features (Roadmap)
-
-| Planned Version | Features |
-|----------------|----------|
-| **0.6.0** | 🌐 **WebSocket Support** - Real-time communication, WebSocket controllers, broadcasting |
-
-## Features
-
-### Core Framework (v0.1+)
-- Simple and intuitive API
-- Routing system with HTTP method support (GET, POST, PUT, DELETE, PATCH)
-- URL path parameter support
-- Request validation with comprehensive rules
-- JSON response generation with fluent API
-- Metrics collection and reporting
-
-### Dependency Injection (v0.2+)
-- **Zero Configuration**: Automatic component discovery with no setup
-- **Constructor Injection**: Dependencies injected via constructor parameters
-- **Named Injection**: Multiple implementations of same interface with @Named
-- **Primary Bean Selection**: Conflict resolution with @Primary annotation
-- **Lifecycle Management**: @PostConstruct and @PreDestroy callbacks
-- **Scope Management**: @Singleton (default) and @Prototype scopes
-- **Framework Integration**: DI works seamlessly with controllers and routing
-
-### Database Integration (v0.3+)
-- **Hibernate/JPA Integration**: Full ORM support with automatic configuration
-- **Spring Data JPA-like Repositories**: Familiar repository pattern with automatic implementation
-- **Method Name Parsing**: Automatic query generation from method names
-- **Custom Queries**: @Query annotation for HQL/JPQL and native SQL queries
-- **Transaction Management**: Automatic transaction handling with proper rollback
-- **Entity Discovery**: Automatic entity scanning and configuration
-- **Connection Pooling**: HikariCP for production-ready database connections
-
-### Auto-CRUD System (v0.4+)
-- **@Crud Annotation**: Automatically generates complete REST APIs with zero boilerplate
-- **Instant Endpoints**: GET, POST, PUT, DELETE endpoints created automatically
-- **Smart Search**: Built-in search functionality with configurable searchable fields
-- **Pagination Support**: Automatic pagination with customizable page sizes and limits
-- **Batch Operations**: Bulk create, update, delete operations for performance
-- **Method Override**: Custom business logic with @CrudOverride annotation
-- **Standardized Responses**: Consistent ApiResponse format across all endpoints
-- **Highly Configurable**: Fine-tune behavior with extensive configuration options
-- **Validation Integration**: Built-in input validation for create/update operations
-- **Audit Logging**: Optional audit trail for all CRUD operations
-
-### Security & Authentication (v0.5+)
-- **@EnableJazzyAuth Annotation**: One-annotation authentication setup with automatic endpoint registration
-- **JWT Token System**: Secure token generation, validation, and configurable expiration times
-- **SecurityConfig**: Declarative URL-based security rules with wildcard pattern support (*, **)
-- **Built-in Auth Endpoints**: Automatic /register, /login, /me endpoints with standardized responses
-- **Role-based Access Control**: ADMIN role support with extensible role system
-- **SecurityInterceptor**: Automatic request interception and security validation
-- **Password Security**: Built-in BCrypt password hashing and validation
-- **Seamless Integration**: Works with DI container, repositories, and existing framework components
-- **Flexible Configuration**: Support for custom JWT secrets, expiration times, and base paths
-
-## Quick Start
-
-### Secure Application with Authentication (v0.5 style) - Latest & Recommended
-
+**Turn this complexity:**
 ```java
-// 1. User Entity
-@Entity
-@Table(name = "users")
-public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+// Traditional Spring Boot setup
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+    @Autowired private UserService userService;
     
-    @Column(unique = true)
-    private String email;
-    
-    private String username;
-    private String password;
-    private String role = "USER"; // USER or ADMIN
-    
-    // getters and setters...
-}
-
-// 2. User Repository
-@Component
-public interface UserRepository extends BaseRepository<User, Long> {
-    Optional<User> findByEmail(String email);
-    Optional<User> findByUsername(String username);
-}
-
-// 3. Security Configuration
-@Component
-public class AppSecurityConfig extends SecurityConfig {
-    @Override
-    public void configure() {
-        // Public endpoints (no auth needed)
-        publicEndpoints("/", "/api/auth/**");
-        
-        // Secure endpoints (JWT required)
-        requireAuth("/api/user/**", "/api/protected");
-        
-        // Admin endpoints (JWT + ADMIN role required)
-        requireRole("ADMIN", "/api/admin/**");
+    @GetMapping
+    public ResponseEntity<List<User>> getUsers() {
+        // ... validation, error handling, response building
     }
+    
+    @PostMapping
+    public ResponseEntity<User> createUser(@RequestBody User user) {
+        // ... validation, error handling, response building
+    }
+    // ... 40+ more lines
 }
 
-// 4. Main Application - That's it! Full authentication system with 1 annotation!
-@EnableJazzyAuth(
-    userClass = User.class,
-    repositoryClass = UserRepository.class,
-    loginMethod = LoginMethod.EMAIL,
-    jwtSecret = "your-secret-key",
-    jwtExpirationHours = 24,
-    authBasePath = "/api/auth"
-)
-public class AuthApp {
-    public static void main(String[] args) {
-        Config config = new Config();
-        Router router = new Router();
-        
-        // Security is automatically configured!
-        // Available endpoints:
-        // POST /api/auth/register - User registration
-        // POST /api/auth/login    - User login
-        // GET  /api/auth/me       - Current user info
-        
-        Server server = new Server(router, config);
-        server.start(8080);
-    }
-}
+// Plus: separate configuration classes, security setup, route registration...
 ```
 
-**🎉 Result**: You now have a complete authentication system with JWT tokens, role-based access control, and protected endpoints!
-
-### Complete Secure CRUD Application (v0.5 + v0.4)
-
+**Into this simplicity:**
 ```java
-// Combine authentication with auto-CRUD for the ultimate experience
-@EnableJazzyAuth(
-    userClass = User.class,
-    repositoryClass = UserRepository.class,
-    loginMethod = LoginMethod.EMAIL
-)
-public class SecureCrudApp {
-    public static void main(String[] args) {
-        Config config = new Config();
-        Router router = new Router();
-        
-        Server server = new Server(router, config);
-        server.start(8080);
-        
-        // You now have:
-        // - Complete authentication system (/api/auth/*)
-        // - Role-based security on all endpoints
-        // - JWT token protection
-        // - Auto-CRUD endpoints (if using @Crud controllers)
-    }
-}
-```
-
-### Auto-CRUD Application (v0.4 style) - Recommended
-
-```java
-// 1. Entity
-@Entity
-@Table(name = "products")
-public class Product {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
-    private String name;
-    private String description;
-    private Double price;
-    private Integer stock;
-    
-    // getters and setters...
-}
-
-// 2. Repository
-@Component
-public interface ProductRepository extends BaseRepository<Product, Long> {
-    // Framework handles all basic operations automatically
-}
-
-// 3. Controller - That's it! Full REST API with 3 lines!
+// Jazzy Framework - Complete REST API with real syntax!
 @Component
 @Crud(
     entity = Product.class,
@@ -219,346 +44,344 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
     searchableFields = {"name", "description"}
 )
 public class ProductController {
-    // Instantly get all these endpoints:
-    // GET    /api/products       - List all products (with pagination)
-    // GET    /api/products/{id}  - Get product by ID
-    // POST   /api/products       - Create new product
-    // PUT    /api/products/{id}  - Update product
-    // DELETE /api/products/{id}  - Delete product
-    // GET    /api/products/search?name=laptop - Search products
+    private final ProductRepository productRepository;
+    
+    public ProductController(ProductRepository productRepository) {
+        this.productRepository = productRepository;
+    }
+    
+    // 🎉 That's it! 5+ endpoints auto-generated + DI + validation
+}
+```
+
+## 🚀 Quick Start (60 seconds)
+
+### 1️⃣ Secure Authentication App
+```java
+// User Entity
+@Entity
+public class User {
+    @Id @GeneratedValue
+    private Long id;
+    private String email;
+    private String username;
+    private String password;
+    private String role = "USER";
+    // getters/setters...
 }
 
-// 4. Main Application
+// Repository
+@Component
+public interface UserRepository extends BaseRepository<User, Long> {
+    Optional<User> findByEmail(String email);
+}
+
+// Main App - Full JWT authentication in 1 annotation!
+@EnableJazzyAuth(
+    userClass = User.class,
+    repositoryClass = UserRepository.class,
+    loginMethod = LoginMethod.EMAIL,
+    jwtExpirationHours = 24,
+    authBasePath = "/api/auth"
+)
 public class App {
     public static void main(String[] args) {
-        Config config = new Config();
         Router router = new Router();
-        
-        // No manual route registration needed!
-        // @Crud annotation handles everything automatically
-        
-        Server server = new Server(router, config);
+        Server server = new Server(router, new Config());
         server.start(8080);
     }
 }
 ```
+**Result:** Full JWT authentication with `/api/auth/register`, `/api/auth/login`, `/api/auth/me` endpoints! 🔐
 
-**🎉 Result**: You now have a complete REST API with 5+ endpoints, pagination, search, and standardized responses!
-
-### Database Application (v0.3 style)
-
+### 2️⃣ Complete CRUD API
 ```java
 // Entity
 @Entity
-@Table(name = "users")
-public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class Product {
+    @Id @GeneratedValue
     private Long id;
-    
-    @Column(unique = true)
-    private String email;
-    
     private String name;
-    private String password;
-    private boolean active = true;
-    
-    // getters and setters...
+    private String description;
+    private Double price;
+    private Integer stock;
+    // getters/setters...
 }
 
-// Repository with automatic query generation
-public interface UserRepository extends BaseRepository<User, Long> {
-    // Automatic query: SELECT u FROM User u WHERE u.email = :email
-    Optional<User> findByEmail(String email);
-    
-    // Automatic query: SELECT u FROM User u WHERE u.active = :active
-    List<User> findByActive(boolean active);
-    
-    // Automatic query: SELECT COUNT(u) FROM User u WHERE u.active = :active
-    long countByActive(boolean active);
-    
-    // Custom query with @Query annotation
-    @Query("SELECT u FROM User u WHERE u.email = :email AND u.active = true")
-    Optional<User> findActiveUserByEmail(String email);
-    
-    // Native SQL query
-    @Query(value = "SELECT * FROM users WHERE email = ?1", nativeQuery = true)
-    Optional<User> findByEmailNative(String email);
-    
-    // Update query
-    @Query("UPDATE User u SET u.active = :active WHERE u.email = :email")
-    @Modifying
-    int updateUserActiveStatus(String email, boolean active);
-}
-
-// Service
+// Repository - Query methods auto-generated!
 @Component
-public class UserService {
-    private final UserRepository userRepository;
-    
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
-    
-    public User createUser(String name, String email, String password) {
-        // Check if user already exists
-        if (userRepository.findByEmail(email).isPresent()) {
-            throw new IllegalArgumentException("User with email " + email + " already exists");
-        }
-        
-        User user = new User();
-        user.setName(name);
-        user.setEmail(email);
-        user.setPassword(password);
-        
-        return userRepository.save(user);
-    }
-    
-    public Optional<User> findByEmail(String email) {
-        return userRepository.findByEmail(email);
-    }
-    
-    public List<User> findAllUsers() {
-        return userRepository.findAll();
-    }
+public interface ProductRepository extends BaseRepository<Product, Long> {
+    List<Product> findByName(String name);
+    List<Product> findByPriceGreaterThan(Double price);
 }
 
-// Controller
+// Controller - Complete REST API in 3 lines!
 @Component
-public class UserController {
-    private final UserService userService;
+@Crud(
+    entity = Product.class,
+    endpoint = "/api/products",
+    enablePagination = true,
+    enableSearch = true,
+    searchableFields = {"name", "description"}
+)
+public class ProductController {
+    private final ProductRepository productRepository;
     
-    public UserController(UserService userService) {
-        this.userService = userService;
+    public ProductController(ProductRepository productRepository) {
+        this.productRepository = productRepository;
     }
     
-    public Response createUser(Request request) {
-        User user = request.toObject(User.class);
-        User createdUser = userService.createUser(user.getName(), user.getEmail(), user.getPassword());
-        return Response.json(JSON.of("result", createdUser));
-    }
-    
-    public Response getUserByEmail(Request request) {
-        String email = request.query("email");
-        Optional<User> user = userService.findByEmail(email);
-        
-        if (user.isPresent()) {
-            return Response.json(JSON.of("user", user.get()));
-        } else {
-            return Response.json(JSON.of("error", "User not found")).status(404);
-        }
+    // Optional: Override any auto-generated method
+    @CrudOverride
+    public Response findAll(Request request) {
+        return Response.json(ApiResponse.success("Custom logic here", 
+            productRepository.findAll()));
     }
 }
 
-// Main class
+// Main App
 public class App {
     public static void main(String[] args) {
-        Config config = new Config();
-        config.setEnableMetrics(true);
-        config.setServerPort(8080);
-        
         Router router = new Router();
         
-        // User routes
-        router.GET("/users", "getAllUsers", UserController.class);
-        router.GET("/users/search", "getUserByEmail", UserController.class);
-        router.POST("/users", "createUser", UserController.class);
+        // Only register overridden methods (others are auto-generated!)
+        router.GET("/api/products", "findAll", ProductController.class);
         
-        Server server = new Server(router, config);
-        server.start(config.getServerPort());
+        Server server = new Server(router, new Config());
+        server.start(8080);
+    }
+}
+```
+**Result:** 5+ REST endpoints with search, pagination, validation! 📊
+
+## ✨ Key Features
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| 🔐 **Zero-Config Auth** | JWT authentication in 1 annotation | ✅ v0.5 |
+| ⚡ **Auto-CRUD** | Complete REST APIs without code | ✅ v0.4 |
+| 🗄️ **Smart Database** | JPA repositories with query parsing | ✅ v0.3 |
+| 💉 **Dependency Injection** | Constructor injection with auto-discovery | ✅ v0.2 |
+| 🛣️ **Clean Routing** | Simple router.GET/POST syntax | ✅ v0.1 |
+
+## 📖 Documentation
+
+- 📚 **[Complete Documentation](https://canermastan.github.io/jazzy-framework/)**
+
+## 🛠️ Installation
+
+```xml
+<dependency>
+    <groupId>com.jazzyframework</groupId>
+    <artifactId>jazzy-core</artifactId>
+    <version>0.5.0</version>
+</dependency>
+```
+
+## 🎯 Real-World Example
+
+```java
+// Task Management System - Complete app in ~50 lines!
+
+// Entity
+@Entity
+public class Task {
+    @Id @GeneratedValue private Long id;
+    private String title;
+    private String description;
+    private boolean completed = false;
+    private LocalDateTime createdAt;
+    // getters/setters...
+}
+
+// Repository - Query methods auto-generated!
+@Component
+public interface TaskRepository extends BaseRepository<Task, Long> {
+    List<Task> findByCompleted(boolean completed);
+    List<Task> findByTitleContaining(String title);
+}
+
+// Controller - Full REST API with validation!
+@Component
+@Crud(
+    entity = Task.class,
+    endpoint = "/api/tasks",
+    enablePagination = true,
+    enableSearch = true,
+    searchableFields = {"title", "description"}
+)
+public class TaskController {
+    private final TaskRepository taskRepository;
+    
+    public TaskController(TaskRepository taskRepository) {
+        this.taskRepository = taskRepository;
+    }
+}
+
+// Security Config
+@Component
+public class SecurityConfig extends jazzyframework.security.SecurityConfig {
+    @Override
+    public void configure() {
+        publicEndpoints("/", "/api/auth/**");
+        requireAuth("/api/tasks/**");
+    }
+}
+
+// Main App - Complete task management system!
+@EnableJazzyAuth(userClass = User.class, repositoryClass = UserRepository.class)
+public class TaskApp {
+    public static void main(String[] args) {
+        Router router = new Router();
+        
+        // Add public route
+        router.GET("/", "welcome", HomeController.class);
+        
+        Server server = new Server(router, new Config());
+        server.start(8080);
+        
+        // 🎉 You now have:
+        // - User registration/login (/api/auth/*)
+        // - Complete task CRUD (/api/tasks/*)
+        // - JWT protection with roles
+        // - Search & pagination
+        // - Input validation
+        // - Constructor injection
+    }
+}
+
+// Simple controller with Request/Response
+public class HomeController {
+    public Response welcome(Request request) {
+        return Response.json(
+            JSON.of(
+                "message", "Welcome to Task Manager!",
+                "endpoints", new String[]{
+                    "POST /api/auth/register",
+                    "POST /api/auth/login",
+                    "GET /api/tasks",
+                    "POST /api/tasks"
+                }
+            )
+        );
     }
 }
 ```
 
-### Configuration (application.properties)
+**Available Endpoints:**
+```bash
+POST /api/auth/register    # User registration
+POST /api/auth/login      # User login  
+GET  /api/auth/me         # Current user info
 
-```properties
-# Database Configuration
-jazzy.datasource.url=jdbc:h2:mem:testdb
-jazzy.datasource.username=sa
-jazzy.datasource.password=
-jazzy.datasource.driver-class-name=org.h2.Driver
-
-# JPA/Hibernate Configuration
-jazzy.jpa.hibernate.ddl-auto=create-drop
-jazzy.jpa.show-sql=true
-jazzy.jpa.hibernate.dialect=org.hibernate.dialect.H2Dialect
-
-# H2 Console (for development)
-jazzy.h2.console.enabled=true
-jazzy.h2.console.path=/h2-console
+GET    /api/tasks         # List tasks (paginated)
+POST   /api/tasks         # Create task
+GET    /api/tasks/{id}    # Get specific task
+PUT    /api/tasks/{id}    # Update task
+DELETE /api/tasks/{id}    # Delete task
+GET    /api/tasks/search?title=urgent  # Search tasks
 ```
 
-That's it! The framework automatically:
-- Discovers entities and repositories
-- Creates repository implementations with query parsing
-- Manages database connections and transactions
-- Provides Spring Data JPA-like functionality
+## 🔍 Why Developers Love Jazzy
 
-## Documentation
+```java
+// ❌ Traditional approach: Complex setup
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+    @Autowired private UserService service;
+    
+    @GetMapping
+    public ResponseEntity<Page<User>> getUsers(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size) {
+        
+        try {
+            Page<User> users = service.findAll(PageRequest.of(page, size));
+            return ResponseEntity.ok(users);
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                .body(new ErrorResponse("Failed to fetch users"));
+        }
+    }
+    // ... 40+ more lines for basic CRUD + validation + error handling
+}
 
-Complete documentation for Jazzy Framework is available on our GitHub Pages site:
+// ✅ Jazzy approach: Clean & simple
+public class UserController {
+    public Response getAllUsers(Request request) {
+        int page = request.queryInt("page", 1);
+        int limit = request.queryInt("limit", 10);
+        
+        return response().json(
+            "users", userService.findAll(),
+            "page", page,
+            "limit", limit
+        );
+    }
+}
 
-[Jazzy Framework Documentation](https://canermastan.github.io/jazzy-framework/)
+// Or even simpler with @Crud:
+@Component
+@Crud(entity = User.class, endpoint = "/api/users", enablePagination = true)
+public class UserController { } // That's it! 🎉
+```
 
-### Documentation Sections
+## 💝 Real Developer Feedback
 
-**Core Framework:**
-- [Getting Started Guide](https://canermastan.github.io/jazzy-framework/getting-started)
-- [Routing](https://canermastan.github.io/jazzy-framework/routing) 
-- [HTTP Requests](https://canermastan.github.io/jazzy-framework/requests)
-- [HTTP Responses](https://canermastan.github.io/jazzy-framework/responses)
-- [JSON Operations](https://canermastan.github.io/jazzy-framework/json)
-- [Validation](https://canermastan.github.io/jazzy-framework/validation)
+> *"I showed Jazzy to a few friends - everyone loved it! They say it looks very simple and serves the purpose directly."*
 
-**Dependency Injection (v0.2+):**
-- [Dependency Injection Guide](https://canermastan.github.io/jazzy-framework/dependency-injection)
-- [DI Examples](https://canermastan.github.io/jazzy-framework/di-examples)
+> *"My friends who were afraid of writing Java say they can now quickly develop applications without dealing with long Java code."*
 
-**Database Integration (v0.3+):**
-- [Database Integration Guide](https://canermastan.github.io/jazzy-framework/database-integration)
-- [Repository Pattern](https://canermastan.github.io/jazzy-framework/repositories)
-- [Query Methods](https://canermastan.github.io/jazzy-framework/query-methods)
+**What developers say:**
+- 🎯 **"Serves the purpose directly"** - No unnecessary complexity
+- ⚡ **"Looks incredibly simple"** - Minimal learning curve  
+- 🚀 **"No more Java fear"** - Makes Java development fun again
+- 💼 **"Developing apps quickly"** - From idea to running app in minutes
 
-**Auto-CRUD System (v0.4+):**
-- [CRUD Operations Guide](https://canermastan.github.io/jazzy-framework/crud)
+## 📊 Framework Comparison
 
-## Development
+| Feature | Spring Boot | Jazzy Framework | Developer Experience |
+|---------|-------------|-----------------|---------------------|
+| Basic CRUD API | ~100 lines | ~3 lines | **Java is no longer scary!** |
+| JWT Authentication | ~200 lines | 1 annotation | **Serves the purpose directly** |
+| Database Setup | Manual config | Auto-discovery | **No setup complexity** |
+| Route Definition | Annotations | Simple router calls | **Clear and simple** |
 
-Jazzy is developed with Maven. After cloning the project, you can use the following commands:
+## 🚀 Getting Started
 
+1. **Clone & Run:**
 ```bash
-# Install dependencies and build the project
+   git clone https://github.com/canermastan/jazzy-framework.git
+   cd jazzy-framework
 mvn clean install
-
-# Run tests
-mvn test
-
-# Run the basic example application
-mvn exec:java -Dexec.mainClass="examples.basic.App"
-
-# Run the DI example application (v0.2+)
-mvn exec:java -Dexec.mainClass="examples.di.App"
-
-# Run the database example application (v0.3+)
-mvn exec:java -Dexec.mainClass="examples.database.DatabaseExampleApp"
-
-# Run the CRUD example application (v0.4+) - RECOMMENDED
 mvn exec:java -Dexec.mainClass="examples.simple_crud.SimpleCrudApp"
 ```
 
-## Project Structure
+2. **Visit:** `http://localhost:8080`
 
-- `core/`: Core framework components
-  - `Server.java`: HTTP server with automatic DI initialization
-  - `RequestHandler.java`: HTTP request processor with DI integration
-  - `Config.java`: Configuration management
-  - `Metrics.java`: Performance metrics
-  - `PropertyLoader.java`: Configuration property management (v0.3+)
-- `routing/`: Routing system
-  - `Router.java`: Route management with DI container support
-  - `Route.java`: Route data structure
-- `http/`: HTTP handling
-  - `Request.java`: Request handling
-  - `Response.java`: Response building
-  - `ResponseFactory.java`: Factory for creating responses
-  - `ApiResponse.java`: Standardized API response format (v0.4+)
-  - `JSON.java`: JSON creation utilities
-  - `validation/`: Validation system
-- `di/`: Dependency injection system (v0.2+)
-  - `DIContainer.java`: Main DI container with automatic discovery
-  - `ComponentScanner.java`: Automatic component scanning
-  - `BeanDefinition.java`: Bean metadata and lifecycle management
-  - `annotations/`: DI annotations (@Component, @Named, @Primary, etc.)
-- `data/`: Database integration system (v0.3+)
-  - `BaseRepository.java`: Base repository interface
-  - `BaseRepositoryImpl.java`: Default repository implementation
-  - `RepositoryFactory.java`: Repository proxy creation
-  - `QueryMethodParser.java`: Method name to query parsing
-  - `HibernateConfig.java`: Hibernate/JPA configuration
-  - `EntityScanner.java`: Automatic entity discovery
-  - `RepositoryScanner.java`: Repository interface scanning
-  - `CrudProcessor.java`: Auto-CRUD system processor (v0.4+)
-  - `annotations/`: Database annotations (@Query, @Modifying, @QueryHint, @Crud, @CrudOverride)
-- `controllers/`: System controllers
-  - `MetricsController.java`: Metrics reporting
-- `examples/`: Example applications
-  - `basic/`: Basic framework usage examples
-  - `di/`: Dependency injection examples (v0.2+)
-  - `database/`: Database integration examples (v0.3+)
-  - `simple_crud/`: Auto-CRUD system examples (v0.4+)
+3. **Explore:** Check out `/examples` folder for real implementations
 
-## Tests
+---
 
-Comprehensive unit tests ensure the reliability of the framework. Test coverage includes:
+## 📋 Version History
 
-**Core Framework Tests:**
-- `RouterTest`: Tests for adding routes, finding routes, and path parameter operations
-- `RouteTest`: Tests for the route data structure
-- `MetricsTest`: Tests for metric counters and calculations
-- `ValidationTest`: Tests for the validation system
-- `ResponseFactoryTest`: Tests for response generation
+<details>
+<summary>Click to expand version history</summary>
 
-**Dependency Injection Tests (v0.2+):**
-- `DIContainerTest`: Tests for DI container functionality and lifecycle
-- `ComponentScannerTest`: Tests for automatic component discovery
-- `BeanDefinitionTest`: Tests for bean metadata extraction
-- `DIIntegrationTest`: Tests for real-world DI scenarios
-- `AnnotationTest`: Tests for all DI annotations
+| Version | Release Date | Key Features |
+|---------|-------------|--------------|
+| **0.5.0** | 2025 | 🆕 **Security & Authentication** - JWT authentication, @EnableJazzyAuth annotation, role-based access control |
+| **0.4.0** | 2025 | 🆕 **Auto-CRUD System** - @Crud annotation, zero-boilerplate REST APIs, automatic endpoint generation |
+| **0.3.0** | 2025 | 🆕 **Database Integration** - Hibernate/JPA, Spring Data JPA-like repositories, automatic query generation |
+| **0.2.0** | 2025 | 🆕 **Dependency Injection System** - Spring-like annotations, automatic component discovery |
+| **0.1.0** | 2025 | Core framework with routing, request/response handling, JSON utilities, validation system |
 
-**137 total tests** covering all framework features with comprehensive edge case testing.
+</details>
 
-## Migration Guide
+---
 
-### From 0.1 to 0.2
+⭐ **Found Jazzy useful?** Give us a star and help other developers discover it!
 
-**Good news: Zero breaking changes!** All existing 0.1 code continues to work without modification.
+**License:** MIT | **Author:** [@canermastan](https://github.com/canermastan) 
 
-**To use new DI features:**
-1. Add `@Component` annotation to classes you want managed by DI
-2. Use constructor injection for dependencies
-3. Optionally use `@Named`, `@Primary`, `@PostConstruct`, `@PreDestroy` for advanced features
-
-You can gradually migrate - mix DI and manual instantiation in the same application.
-
-## Contributing
-
-**Jazzy is actively maintained and we welcome contributions of any size!**
-
-We believe that open source thrives with community involvement, and we appreciate all types of contributions, whether you're fixing a typo, improving documentation, adding a new feature, or reporting a bug.
-
-### 📖 Complete Contributing Guide
-
-For detailed contribution guidelines, development setup, and code standards, see our **[Contributing Guide](CONTRIBUTING.md)**.
-
-### 🚀 Quick Start for Contributors
-
-1. **Read our [Contributing Guide](CONTRIBUTING.md)** for detailed instructions
-2. **Fork the project** and clone your fork
-3. **Check out [good first issues](https://github.com/canermastan/jazzy-framework/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)** for beginner-friendly tasks
-4. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-5. **Make your changes** and add tests if applicable
-6. **Run tests** to make sure everything works (`mvn test`)
-7. **Commit your changes** following [Conventional Commits](https://www.conventionalcommits.org/)
-8. **Push to your branch** and open a Pull Request
-
-### 🤝 Community & Support
-
-- 💬 **[GitHub Discussions](https://github.com/canermastan/jazzy-framework/discussions)** - Community help and general questions
-- 🐛 **[Report Issues](https://github.com/canermastan/jazzy-framework/issues/new/choose)** - Bug reports and feature requests
-- 📚 **[Documentation](https://canermastan.github.io/jazzy-framework/)** - Complete framework documentation
-- 🎯 **[Good First Issues](https://github.com/canermastan/jazzy-framework/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)** - Perfect for newcomers
-
-### 🏷️ Issue Templates
-
-We have beginner-friendly issue templates to help you contribute:
-
-- 🐛 **Bug Report** - Found something broken?
-- 💡 **Feature Request** - Have an idea for improvement?
-- ❓ **Question** - Need help with something?
-
-No contribution is too small, and we're happy to help newcomers get started! 🚀
-
-## License
-
-MIT License 
