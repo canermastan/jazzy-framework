@@ -14,11 +14,12 @@ body:
       label: What area is this about?
       options:
         - Core Framework
-        - Dependency Injection
-        - HTTP/Routing
+        - Security
         - Validation
         - Documentation
         - Developer Experience
+        - Dependency Injection
+        - HTTP/Routing
         - Other
     validations:
       required: true
