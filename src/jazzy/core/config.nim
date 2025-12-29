@@ -1,4 +1,4 @@
-import std/[os, strutils, tables]
+import std/[os, strutils]
 
 proc loadEnv*(path: string = "") =
   var targetPath = path

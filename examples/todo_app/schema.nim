@@ -1,4 +1,4 @@
-import ../../src/jazzy
+import jazzy
 
 proc initSchema*() =
   createTable("todos")

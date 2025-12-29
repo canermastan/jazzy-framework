@@ -1,4 +1,4 @@
-import ../../../src/jazzy
+import jazzy
 
 type Todo* = object
   id*: int

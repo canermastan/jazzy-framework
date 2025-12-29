@@ -1,5 +1,5 @@
-import std/[strutils, tables, sequtils]
-import ../core/types
+import std/[strutils, tables]
+import jazzy/core/types
 
 proc parseMultipart*(body: string, contentType: string): Table[string,
     UploadedFile] =

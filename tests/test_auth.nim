@@ -1,6 +1,6 @@
-import unittest, json, options, httpcore, strutils, times
-import ../../src/jazzy/core/[types, context]
-import ../../src/jazzy/auth/[jwt_manager, security]
+import unittest, json, options, httpcore, strutils
+import jazzy/core/[types, context]
+import jazzy/auth/[jwt_manager, security]
 
 suite "Auth System Tests":
 

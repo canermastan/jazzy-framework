@@ -1,4 +1,4 @@
-import ../../../src/jazzy
+import jazzy
 import ../services/todo_service
 import ../models/todo
 

@@ -1,6 +1,6 @@
 import unittest, tables
-import ../../src/jazzy/utils/multipart
-import ../../src/jazzy/core/types
+import jazzy/utils/multipart
+import jazzy/core/types
 
 suite "Multipart Parser Tests":
 

@@ -1,4 +1,4 @@
-import ../../src/jazzy
+import jazzy
 import router
 import services/todo_service
 import schema

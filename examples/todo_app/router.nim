@@ -1,4 +1,4 @@
-import ../../src/jazzy
+import jazzy
 import controllers/todo_controller
 import controllers/auth_controller
 

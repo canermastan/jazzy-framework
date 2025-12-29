@@ -1,6 +1,6 @@
 import std/asyncdispatch
 import types, context, server, router, static_files
-import ../drivers/mummy_driver
+import jazzy/drivers/mummy_driver
 
 type
   JazzyStatic* = object

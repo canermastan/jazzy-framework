@@ -1,6 +1,5 @@
-import std/[json, strutils, tables, parseutils]
+import std/[json, strutils]
 import types
-import ../utils/json_helpers
 
 proc parseRules(ruleStr: string): seq[tuple[name: string, args: seq[string]]] =
   result = @[]

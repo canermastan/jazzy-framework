@@ -1,13 +1,13 @@
-import os, osproc, strformat
+import osproc, strformat
 
 # Simple runner to execute all tests
 # We compile and run each test file individually to ensure isolation
 
 const tests = [
-  "tests/tests/test_multipart.nim",
-  "tests/tests/test_context.nim",
-  "tests/tests/test_router.nim",
-  "tests/tests/test_auth.nim"
+  "tests/test_multipart.nim",
+  "tests/test_context.nim",
+  "tests/test_router.nim",
+  "tests/test_auth.nim"
 ]
 
 var failed = false
@@ -18,7 +18,7 @@ echo "======================================================="
 
 for test in tests:
   echo fmt"Testing {test}..."
-  let cmd = fmt"nim c -r --hints:off --verbosity:0 {test}"
+  let cmd = fmt"nim c -r --path:src --hints:off --verbosity:0 {test}"
   let res = execCmd(cmd)
   if res != 0:
     echo fmt"FAILED: {test}"

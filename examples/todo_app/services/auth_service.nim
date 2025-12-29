@@ -1,4 +1,4 @@
-import ../../../src/jazzy
+import jazzy
 import std/[json, options]
 
 proc login*(username, password: string): Option[JsonNode] =
