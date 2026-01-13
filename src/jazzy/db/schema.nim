@@ -1,4 +1,4 @@
-import std/[strutils, sequtils]
+import std/[strutils]
 import database
 
 type

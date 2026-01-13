@@ -1,4 +1,4 @@
-import std/[asyncdispatch, strutils, httpcore, tables, uri, strtabs]
+import std/[asyncdispatch, strutils, httpcore, tables, uri]
 import mummy
 import ../core/[types, server, context]
 import ../utils/multipart

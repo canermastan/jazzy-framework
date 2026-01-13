@@ -1,4 +1,4 @@
-import std/[json, strutils, sequtils]
+import std/[json, strutils]
 import tiny_sqlite
 import database
 
