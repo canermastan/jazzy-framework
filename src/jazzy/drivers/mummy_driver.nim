@@ -1,7 +1,7 @@
 import std/[asyncdispatch, strutils, httpcore, tables, uri, strtabs]
 import mummy
-import jazzy/core/[types, server, context]
-import jazzy/utils/multipart
+import ../core/[types, server, context]
+import ../utils/multipart
 
 type
   MummyDriver* = ref object of ServerDriver

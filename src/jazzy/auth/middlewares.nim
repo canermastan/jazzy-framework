@@ -1,4 +1,4 @@
-import jazzy/core/[context, types]
+import ../core/[context, types]
 import std/[asyncdispatch, json, httpcore]
 
 let guard*: MiddlewareProc = proc(ctx: Context, next: HandlerProc) {.async.} =
