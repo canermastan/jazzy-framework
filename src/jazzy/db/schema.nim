@@ -1,6 +1,6 @@
 import std/[strutils]
 import tiny_sqlite
-import database
+import database, builder
 
 type
   ColumnDef = object
@@ -18,7 +18,7 @@ type
 
 proc createTable*(name: string): SchemaBuilder =
   new(result)
-  result.tableName = name
+  result.tableName = sanitizeIdentifier(name)
   result.columns = @[]
   result.ifNotExists = true
 
@@ -28,7 +28,7 @@ proc ifNotExists*(sb: SchemaBuilder, val: bool = true): SchemaBuilder =
 
 proc increments*(sb: SchemaBuilder, name: string): SchemaBuilder =
   sb.columns.add(ColumnDef(
-    name: name,
+    name: sanitizeIdentifier(name),
     dataType: "INTEGER",
     primaryKey: true,
     autoIncrement: true,
@@ -40,7 +40,7 @@ proc string*(sb: SchemaBuilder, name: string, nullable = false,
     default = ""): SchemaBuilder =
   var d = if default.len > 0: "'" & default & "'" else: ""
   sb.columns.add(ColumnDef(
-    name: name,
+    name: sanitizeIdentifier(name),
     dataType: "TEXT",
     nullable: nullable,
     defaultVal: d
@@ -50,7 +50,7 @@ proc string*(sb: SchemaBuilder, name: string, nullable = false,
 proc integer*(sb: SchemaBuilder, name: string, nullable = false,
     default = 0): SchemaBuilder =
   sb.columns.add(ColumnDef(
-    name: name,
+    name: sanitizeIdentifier(name),
     dataType: "INTEGER",
     nullable: nullable,
     defaultVal: $default
@@ -61,7 +61,7 @@ proc boolean*(sb: SchemaBuilder, name: string, nullable = false,
     default = false): SchemaBuilder =
   let d = if default: "1" else: "0"
   sb.columns.add(ColumnDef(
-    name: name,
+    name: sanitizeIdentifier(name),
     dataType: "INTEGER",
     nullable: nullable,
     defaultVal: d

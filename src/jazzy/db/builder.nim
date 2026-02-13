@@ -2,6 +2,14 @@ import std/[json, strutils]
 import tiny_sqlite
 import database
 
+proc sanitizeIdentifier*(name: string): string =
+  if name.len == 0:
+    raise newException(ValueError, "SQL identifier cannot be empty")
+  for c in name:
+    if c notin {'a'..'z', 'A'..'Z', '0'..'9', '_'}:
+      raise newException(ValueError, "Invalid SQL identifier: " & name)
+  return name
+
 type
   QueryBuilder* = ref object
     tableName: string
@@ -19,24 +27,24 @@ proc makeDbValue(v: int): DbValue = DbValue(kind: sqliteInteger, intVal: v)
 # Builder Methods
 proc table*(db: DatabaseHelper, name: string): QueryBuilder =
   new(result)
-  result.tableName = name
+  result.tableName = sanitizeIdentifier(name)
   result.wheres = @[]
   result.params = @[]
   result.limit = -1
 
 proc where*(qb: QueryBuilder, col: string, val: string): QueryBuilder =
-  qb.wheres.add(col & " = ?")
+  qb.wheres.add(sanitizeIdentifier(col) & " = ?")
   qb.params.add(makeDbValue(val))
   return qb
 
 proc where*(qb: QueryBuilder, col: string, val: int): QueryBuilder =
-  qb.wheres.add(col & " = ?")
+  qb.wheres.add(sanitizeIdentifier(col) & " = ?")
   qb.params.add(makeDbValue(val))
   return qb
 
 proc where*(qb: QueryBuilder, col: string, op: string,
     val: string): QueryBuilder =
-  qb.wheres.add(col & " " & op & " ?")
+  qb.wheres.add(sanitizeIdentifier(col) & " " & op & " ?")
   qb.params.add(makeDbValue(val))
   return qb
 
@@ -110,7 +118,7 @@ proc insert*(qb: QueryBuilder, data: JsonNode): int64 =
   var placeholders: seq[string] = @[]
 
   for k, v in data:
-    cols.add(k)
+    cols.add(sanitizeIdentifier(k))
     placeholders.add("?")
     case v.kind
     of JInt: vals.add(makeDbValue(v.getInt))
@@ -131,7 +139,7 @@ proc update*(qb: QueryBuilder, data: JsonNode) =
   var vals: seq[DbValue] = @[]
 
   for k, v in data:
-    sets.add(k & " = ?")
+    sets.add(sanitizeIdentifier(k) & " = ?")
     case v.kind
     of JInt: vals.add(makeDbValue(v.getInt))
     of JString: vals.add(makeDbValue(v.getStr))
