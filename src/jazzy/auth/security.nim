@@ -4,6 +4,14 @@ import nimcrypto/hmac
 import nimcrypto/sha2
 import std/[strutils, base64]
 
+proc constantTimeCompare(a, b: string): bool =
+  if a.len != b.len:
+    return false
+  var result: byte = 0
+  for i in 0 ..< a.len:
+    result = result or (a[i].byte xor b[i].byte)
+  return result == 0
+
 const
   SaltLength = 16
   Iterations = 10000
@@ -53,6 +61,6 @@ proc verifyPassword*(password: string, storedHash: string): bool =
       derivedKey
     )
 
-    return encode(derivedKey) == originalHash
+    return constantTimeCompare(encode(derivedKey), originalHash)
   except:
     return false
