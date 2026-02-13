@@ -1,4 +1,5 @@
 import std/[strutils]
+import tiny_sqlite
 import database
 
 type
@@ -93,4 +94,5 @@ proc execute*(sb: SchemaBuilder) =
 
   sql.add(sb.tableName & " (\n  " & sqlParts.join(",\n  ") & "\n)")
 
-  database.exec(sql)
+  withDB:
+    database.getConn().exec(sql)

@@ -54,8 +54,9 @@ proc valToJson(val: DbValue): JsonNode =
 
 proc getColumns(tableName: string): seq[string] =
   result = @[]
-  for row in database.getConn().iterate("PRAGMA table_info(" & tableName & ")"):
-    result.add(row[1].strVal)
+  withDB:
+    for row in database.getConn().iterate("PRAGMA table_info(" & tableName & ")"):
+      result.add(row[1].strVal)
 
 proc get*(qb: QueryBuilder): JsonNode =
   var sqlStr = "SELECT * FROM " & qb.tableName
@@ -69,12 +70,12 @@ proc get*(qb: QueryBuilder): JsonNode =
   let cols = getColumns(qb.tableName)
 
   result = newJArray()
-  for row in database.getConn().iterate(sqlStr, qb.params):
-    var rowJson = newJObject()
-    # row is indexed 0..cols.len
-    for i in 0 ..< min(row.len, cols.len):
-      rowJson[cols[i]] = valToJson(row[i])
-    result.add(rowJson)
+  withDB:
+    for row in database.getConn().iterate(sqlStr, qb.params):
+      var rowJson = newJObject()
+      for i in 0 ..< min(row.len, cols.len):
+        rowJson[cols[i]] = valToJson(row[i])
+      result.add(rowJson)
 
 proc first*(qb: QueryBuilder): JsonNode =
   qb.limit = 1
@@ -88,9 +89,9 @@ proc count*(qb: QueryBuilder): int =
   if qb.wheres.len > 0:
     sqlStr.add(" WHERE " & qb.wheres.join(" AND "))
 
-  # Execute one row, first column
-  for row in database.getConn().iterate(sqlStr, qb.params):
-    return row[0].intVal
+  withDB:
+    for row in database.getConn().iterate(sqlStr, qb.params):
+      return row[0].intVal
   return 0
 
 proc delete*(qb: QueryBuilder) =
@@ -98,7 +99,8 @@ proc delete*(qb: QueryBuilder) =
   if qb.wheres.len > 0:
     sqlStr.add(" WHERE " & qb.wheres.join(" AND "))
 
-  database.getConn().exec(sqlStr, qb.params)
+  withDB:
+    database.getConn().exec(sqlStr, qb.params)
 
 proc insert*(qb: QueryBuilder, data: JsonNode): int64 =
   if data.kind != JObject: return 0
@@ -118,8 +120,9 @@ proc insert*(qb: QueryBuilder, data: JsonNode): int64 =
 
   let sqlStr = "INSERT INTO " & qb.tableName & " (" & cols.join(", ") &
       ") VALUES (" & placeholders.join(", ") & ")"
-  database.getConn().exec(sqlStr, vals)
-  return database.getConn().lastInsertRowId()
+  withDB:
+    database.getConn().exec(sqlStr, vals)
+    return database.getConn().lastInsertRowId()
 
 proc update*(qb: QueryBuilder, data: JsonNode) =
   if data.kind != JObject: return
@@ -141,4 +144,5 @@ proc update*(qb: QueryBuilder, data: JsonNode) =
   if qb.wheres.len > 0:
     sqlStr.add(" WHERE " & qb.wheres.join(" AND "))
 
-  database.getConn().exec(sqlStr, vals)
+  withDB:
+    database.getConn().exec(sqlStr, vals)
