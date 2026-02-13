@@ -7,10 +7,10 @@ import std/[strutils, base64]
 proc constantTimeCompare(a, b: string): bool =
   if a.len != b.len:
     return false
-  var result: byte = 0
+  var diff: byte = 0
   for i in 0 ..< a.len:
-    result = result or (a[i].byte xor b[i].byte)
-  return result == 0
+    diff = diff or (a[i].byte xor b[i].byte)
+  return diff == 0
 
 const
   SaltLength = 16
