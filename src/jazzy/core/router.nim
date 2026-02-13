@@ -171,6 +171,9 @@ proc dispatch*(ctx: Context) {.async.} =
     except ValidationError as e:
       ctx.status(422).json(%*{"errors": e.errors})
     except Exception as e:
-      ctx.status(500).json(%*{"error": e.msg})
+      when defined(release):
+        ctx.status(500).json(%*{"error": "Internal Server Error"})
+      else:
+        ctx.status(500).json(%*{"error": e.msg})
   else:
     ctx.status(404).text("404 Not Found")

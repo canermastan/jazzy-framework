@@ -54,8 +54,12 @@ method serve*(driver: MummyDriver, port: int, handler: HandlerProc) {.async.} =
       req.respond(ctx.response.code, headers, ctx.response.body)
 
     except Exception as e:
-      echo "Error handling request: ", e.msg
-      req.respond(500, @[], "Internal Server Error: " & e.msg)
+      when defined(release):
+        echo "Error handling request"
+        req.respond(500, @[], "Internal Server Error")
+      else:
+        echo "Error handling request: ", e.msg
+        req.respond(500, @[], "Internal Server Error: " & e.msg)
 
   driver.server = newServer(mummyHandler)
   echo "🎷 Jazzy is dancing on http://localhost:" & $port
