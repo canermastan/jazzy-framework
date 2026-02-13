@@ -73,6 +73,19 @@ proc validate*(input: JsonNode, rules: JsonNode): JsonNode =
            if not rule.args.contains(cleanVal):
              fieldErrors.add(field & " is invalid")
 
+      of "email":
+        if val != nil and val.kind == JString:
+          let email = val.getStr
+          let atPos = email.find('@')
+          if atPos < 1 or atPos >= email.len - 1:
+            fieldErrors.add(field & " must be a valid email address")
+          else:
+            let domain = email[atPos + 1 .. ^1]
+            if domain.find('.') < 1 or domain.endsWith("."):
+              fieldErrors.add(field & " must be a valid email address")
+        elif val != nil:
+          fieldErrors.add(field & " must be a valid email address")
+
     if fieldErrors.len > 0:
       hasError = true
       errors[field] = %fieldErrors
