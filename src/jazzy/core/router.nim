@@ -105,8 +105,12 @@ template groupPath*(router: RouterStatic, prefix: string,
   router.groupPath(prefix, @[middleware], body)
 
 template createRouteMethods(methodName, httpMethodEnum) =
-  proc methodName*(router: RouterStatic, path: string, handler: HandlerProc) =
-    router.addRoute(httpMethodEnum, path, handler)
+  proc methodName*(router: RouterStatic, path: string, handler: proc(
+      ctx: Context): Future[void]) =
+    let wrapped: HandlerProc = proc(ctx: Context): Future[void] {.async.} =
+      {.cast(gcsafe).}:
+        await handler(ctx)
+    router.addRoute(httpMethodEnum, path, wrapped)
 
   proc methodName*(router: RouterStatic, path: string, handler: proc(
       ctx: Context) {.gcsafe.}) =
@@ -172,6 +176,7 @@ proc dispatch*(ctx: Context) {.async.} =
       ctx.status(422).json(%*{"errors": e.errors})
     except Exception as e:
       when defined(release):
+        discard e # Suppress unused variable hint
         ctx.status(500).json(%*{"error": "Internal Server Error"})
       else:
         ctx.status(500).json(%*{"error": e.msg})

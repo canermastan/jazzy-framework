@@ -55,6 +55,7 @@ method serve*(driver: MummyDriver, port: int, handler: HandlerProc) {.async.} =
 
     except Exception as e:
       when defined(release):
+        discard e
         echo "Error handling request"
         req.respond(500, @[], "Internal Server Error")
       else:
