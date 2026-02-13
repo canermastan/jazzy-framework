@@ -5,7 +5,6 @@ author        = "canermastan"
 description   = "Productive, developer-friendly web framework for Nim. Write less code, build more features."
 license       = "MIT"
 srcDir        = "src"
-namedBin      = {"jazzy_cli": "jazzy"}.toTable()
 
 # Dependencies
 
