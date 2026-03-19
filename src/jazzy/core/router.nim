@@ -4,7 +4,7 @@ import types, context, server
 export types
 
 type
-  RouteDef = object
+  RouteDef* = object
     httpMethod: HttpMethod
     path: string
     parts: seq[string] # Pre-split path for faster matching
@@ -12,8 +12,8 @@ type
     handler: HandlerProc
 
   RouterStatic = ref object
-    routes: seq[RouteDef]
-    staticRoutes: array[HttpMethod, Table[string,
+    routes*: seq[RouteDef]
+    staticRoutes*: array[HttpMethod, Table[string,
         RouteDef]]
     currentStack: seq[MiddlewareProc]
     currentPrefix: string
@@ -149,6 +149,12 @@ proc dispatch*(ctx: Context) {.async.} =
     if Route.staticRoutes[reqMethod].hasKey(reqPath):
       matchedRoute = Route.staticRoutes[reqMethod][reqPath]
       found = true
+    elif reqMethod == HttpOptions:
+      for mId in HttpMethod:
+        if mId != HttpOptions and Route.staticRoutes[mId].hasKey(reqPath):
+          matchedRoute = Route.staticRoutes[mId][reqPath]
+          found = true
+          break
 
     if not found:
       var reqParts: seq[string]
@@ -169,6 +175,19 @@ proc dispatch*(ctx: Context) {.async.} =
           ctx.request.params = attemptParams
           break
 
+      # Preflight fallback for dynamic routes
+      if not found and reqMethod == HttpOptions:
+        for route in Route.routes:
+          if route.httpMethod == HttpOptions: continue
+          if not route.isDynamic: continue
+
+          var attemptParams = initTable[string, string]()
+          if matchRoute(route, reqParts, attemptParams):
+            matchedRoute = route
+            found = true
+            ctx.request.params = attemptParams
+            break
+
   if found:
     try:
       await matchedRoute.handler(ctx)
@@ -176,7 +195,7 @@ proc dispatch*(ctx: Context) {.async.} =
       ctx.status(422).json(%*{"errors": e.errors})
     except Exception as e:
       when defined(release):
-        discard e # Suppress unused variable hint
+        discard e
         ctx.status(500).json(%*{"error": "Internal Server Error"})
       else:
         ctx.status(500).json(%*{"error": e.msg})
