@@ -177,6 +177,10 @@ proc dispatch*(ctx: Context) {.async.} =
 
       # Preflight fallback for dynamic routes
       if not found and reqMethod == HttpOptions:
+        if not partsLoaded:
+          reqParts = splitPath(reqPath)
+          partsLoaded = true
+
         for route in Route.routes:
           if route.httpMethod == HttpOptions: continue
           if not route.isDynamic: continue
