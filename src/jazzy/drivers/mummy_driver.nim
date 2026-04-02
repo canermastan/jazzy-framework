@@ -7,7 +7,8 @@ type
   MummyDriver* = ref object of ServerDriver
     server: Server
 
-method serve*(driver: MummyDriver, port: int, handler: HandlerProc) {.async.} =
+method serve*(driver: MummyDriver, port: int, address: string,
+    handler: HandlerProc) {.async.} =
 
   proc mummyHandler(req: Request) =
     let jReq = new(JazzyRequest)
@@ -63,5 +64,5 @@ method serve*(driver: MummyDriver, port: int, handler: HandlerProc) {.async.} =
         req.respond(500, @[], "Internal Server Error: " & e.msg)
 
   driver.server = newServer(mummyHandler)
-  echo "🎷 Jazzy is dancing on http://localhost:" & $port
-  driver.server.serve(Port(port))
+  echo "🎷 Jazzy is dancing on http://" & address & ":" & $port
+  driver.server.serve(Port(port), address)

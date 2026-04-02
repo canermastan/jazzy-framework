@@ -22,7 +22,7 @@ proc static*(app: var JazzyStatic, path: string,
     urlPrefix: string = "/public") =
   app.use(serveStatic(path, urlPrefix))
 
-proc serve*(app: JazzyStatic, port: int) =
+proc serve*(app: JazzyStatic, port: int, address: string = "0.0.0.0") =
   var mainHandler: HandlerProc = proc(ctx: Context): Future[void] {.async, gcsafe.} =
     await router.dispatch(ctx)
 
@@ -32,4 +32,4 @@ proc serve*(app: JazzyStatic, port: int) =
     mainHandler = proc(ctx: Context): Future[void] {.async, gcsafe.} =
       await mw(ctx, next)
 
-  waitFor app.driver.serve(port, mainHandler)
+  waitFor app.driver.serve(port, address, mainHandler)
