@@ -124,8 +124,6 @@ Then use the `basicAuthGuard` middleware on routes that need protection:
 Route.groupPath("/admin", basicAuthGuard):
   Route.get("/", admin_controller.index)
 ```
-  Route.get("/", admin_controller.index)
-```
 
 ### 4. CONFIGURATION
 Jazzy automatically reads your `.env` file.
