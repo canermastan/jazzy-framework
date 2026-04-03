@@ -108,6 +108,20 @@ if ctx.check():
   echo "User is logged in!"
 ```
 
+#### Basic Auth
+Configure Basic Auth through environment variables:
+
+```env
+BASIC_AUTH_USER=admin
+BASIC_AUTH_PASSWORD=secret123
+```
+
+When `BASIC_AUTH_USER` is set, Jazzy automatically uses Basic Auth instead of JWT. Request with:
+
+```bash
+curl -H "Authorization: Basic YWRtaW46c2VjcmV0MTIz" http://localhost:8080/protected
+```
+
 ### 4. CONFIGURATION
 Jazzy automatically reads your `.env` file.
 

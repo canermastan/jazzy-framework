@@ -1,4 +1,4 @@
-import unittest, json, options, httpcore, strutils
+import unittest, json, options, httpcore, strutils, base64, os
 import jazzy/core/[types, context]
 import jazzy/auth/[jwt_manager, security]
 
@@ -116,10 +116,8 @@ suite "Auth System Tests":
     let manager = newJwtManager("s3cr3t")
     let token = manager.sign(%*{"user": "alice"})
 
-    # Change last character of signature
     var badToken = token
-    if badToken[^1] == 'a': badToken[^1] = 'b'
-    else: badToken[^1] = 'a'
+    badToken[^1] = if badToken[^1] == 'a': 'b' else: 'a'
 
     check manager.verify(badToken).isNone()
 
@@ -129,3 +127,56 @@ suite "Auth System Tests":
 
     let token = manager1.sign(%*{"user": "alice"})
     check manager2.verify(token).isNone()
+
+  test "Basic Auth should authenticate with valid credentials":
+    putEnv("BASIC_AUTH_USER", "admin")
+    putEnv("BASIC_AUTH_PASSWORD", "secret123")
+
+    let credentials = encode("admin:secret123")
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    basicReq.headers["Authorization"] = "Basic " & credentials
+    let basicCtx = newContext(basicReq)
+
+    check basicCtx.check() == true
+    check basicCtx.user.isSome()
+    check basicCtx.user.get["username"].getStr == "admin"
+
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
+
+  test "Basic Auth should reject invalid credentials":
+    putEnv("BASIC_AUTH_USER", "admin")
+    putEnv("BASIC_AUTH_PASSWORD", "secret123")
+
+    let credentials = encode("admin:wrongpassword")
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    basicReq.headers["Authorization"] = "Basic " & credentials
+    let basicCtx = newContext(basicReq)
+
+    check basicCtx.check() == false
+    check basicCtx.user.isNone()
+
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
+
+  test "Basic Auth should reject missing header when configured":
+    putEnv("BASIC_AUTH_USER", "admin")
+    putEnv("BASIC_AUTH_PASSWORD", "secret123")
+
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    let basicCtx = newContext(basicReq)
+
+    check basicCtx.check() == false
+    check basicCtx.user.isNone()
+
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
+
+  test "Basic Auth should pass through when not configured":
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
+
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    let basicCtx = newContext(basicReq)
+
+    check basicCtx.check() == false

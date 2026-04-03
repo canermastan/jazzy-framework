@@ -1,0 +1,19 @@
+# Nim
+nimcache/
+*.exe
+*.dll
+*.dylib
+
+# Test binaries
+tests/all_tests
+tests/test_auth
+tests/test_context
+tests/test_multipart
+tests/test_router
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
