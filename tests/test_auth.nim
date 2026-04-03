@@ -1,6 +1,6 @@
-import unittest, json, options, httpcore, strutils, base64, os
+import unittest, json, options, httpcore, strutils, base64, os, asyncdispatch
 import jazzy/core/[types, context]
-import jazzy/auth/[jwt_manager, security]
+import jazzy/auth/[jwt_manager, security, middlewares]
 
 suite "Auth System Tests":
 
@@ -144,3 +144,67 @@ suite "Auth System Tests":
 
     putEnv("BASIC_AUTH_USER", "")
     putEnv("BASIC_AUTH_PASSWORD", "")
+
+  test "basicAuthGuard middleware should authenticate with valid credentials":
+    putEnv("BASIC_AUTH_USER", "admin")
+    putEnv("BASIC_AUTH_PASSWORD", "secret123")
+
+    let credentials = encode("admin:secret123")
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    basicReq.headers["Authorization"] = "Basic " & credentials
+    let basicCtx = newContext(basicReq)
+
+    proc testNext(ctx: Context) {.async.} = discard
+    waitFor basicAuthGuard(basicCtx, testNext)
+
+    check basicCtx.check() == true
+    check basicCtx.user.isSome()
+    check basicCtx.user.get["username"].getStr == "admin"
+
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
+
+  test "basicAuthGuard middleware should reject invalid credentials":
+    putEnv("BASIC_AUTH_USER", "admin")
+    putEnv("BASIC_AUTH_PASSWORD", "secret123")
+
+    let credentials = encode("admin:wrongpassword")
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    basicReq.headers["Authorization"] = "Basic " & credentials
+    let basicCtx = newContext(basicReq)
+
+    proc testNext(ctx: Context) {.async.} = discard
+    waitFor basicAuthGuard(basicCtx, testNext)
+
+    check basicCtx.check() == false
+
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
+
+  test "basicAuthGuard middleware should reject missing header":
+    putEnv("BASIC_AUTH_USER", "admin")
+    putEnv("BASIC_AUTH_PASSWORD", "secret123")
+
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    let basicCtx = newContext(basicReq)
+
+    proc testNext(ctx: Context) {.async.} = discard
+    waitFor basicAuthGuard(basicCtx, testNext)
+
+    check basicCtx.check() == false
+
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
+
+  test "basicAuthGuard middleware should reject when not configured":
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
+
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    let basicCtx = newContext(basicReq)
+
+    proc testNext(ctx: Context) {.async.} = discard
+    waitFor basicAuthGuard(basicCtx, testNext)
+
+    check basicCtx.check() == false
+    check basicCtx.response.code == 401

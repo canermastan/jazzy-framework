@@ -1,6 +1,7 @@
 import ../core/[context, types]
-import std/[asyncdispatch, json]
+import std/[asyncdispatch, json, httpcore, base64, strutils, options]
 import ../auth/basic_auth
+import ../core/config
 
 let guard*: MiddlewareProc = proc(ctx: Context, next: HandlerProc) {.async.} =
   ## Middleware that ensures the user is authenticated.
