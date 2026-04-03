@@ -122,6 +122,13 @@ When `BASIC_AUTH_USER` is set, Jazzy automatically uses Basic Auth instead of JW
 curl -H "Authorization: Basic YWRtaW46c2VjcmV0MTIz" http://localhost:8080/protected
 ```
 
+For explicit per-route protection, use `basicAuthGuard` middleware:
+
+```nim
+Route.groupPath("/admin", basicAuthGuard):
+  Route.get("/", admin_controller.index)
+```
+
 ### 4. CONFIGURATION
 Jazzy automatically reads your `.env` file.
 
