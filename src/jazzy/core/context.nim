@@ -1,5 +1,5 @@
-import std/[json, httpcore, tables, strutils, options]
-import types, cache
+import std/[json, httpcore, tables, strutils, options, net]
+import types, cache, ip
 import ../utils/json_helpers
 import validation
 import ../auth/jwt_manager
@@ -121,6 +121,9 @@ proc id*(ctx: Context): int =
     let u = ctx.auth.user.get
     if u.hasKey("id"): return u["id"].getInt
   return 0
+
+proc ip*(ctx: Context): string =
+  getClientIp(ctx.request.headers, ctx.request.ip)
 
 proc validate*(ctx: Context, rules: JsonNode): JsonNode =
   if ctx.request.body.len == 0:

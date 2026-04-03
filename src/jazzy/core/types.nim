@@ -15,6 +15,7 @@ type
     httpMethod*: HttpMethod
     url*: string
     path*: string
+    ip*: string
     queryParams*: Table[string, string]
     params*: Table[string, string]
     files*: Table[string, UploadedFile]

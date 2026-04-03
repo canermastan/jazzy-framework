@@ -14,6 +14,7 @@ method serve*(driver: MummyDriver, port: int, address: string,
     let jReq = new(JazzyRequest)
     jReq.body = req.body
     jReq.url = req.uri
+    jReq.ip = req.remoteAddress
 
     try:
       jReq.httpMethod = parseEnum[HttpMethod](req.httpMethod)

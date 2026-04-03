@@ -1,4 +1,4 @@
-import unittest, json, tables, options, httpcore
+import unittest, json, tables, options, httpcore, std/os
 import jazzy/core/[types, context]
 
 suite "Context Logic Tests":
@@ -52,3 +52,14 @@ suite "Context Logic Tests":
     ctx.json(%*{"a": 1})
     check ctx.response.body == """{"a":1}"""
     check ctx.response.headers["Content-Type"] == "application/json"
+
+  test "JazzyRequest should store and retrieve client IP":
+    let req = JazzyRequest(
+      ip: "127.0.0.1"
+    )
+    let ctx = newContext(req)
+    check ctx.request.ip == "127.0.0.1"
+    check ctx.ip() == "127.0.0.1"
+
+
+
