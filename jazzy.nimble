@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.3"
+version       = "0.2.0"
 author        = "canermastan"
 description   = "Productive, developer-friendly web framework for Nim. Write less code, build more features."
 license       = "MIT"
