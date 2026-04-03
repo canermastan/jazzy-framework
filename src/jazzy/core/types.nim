@@ -1,4 +1,5 @@
 import std/[httpcore, tables, asyncdispatch, json, options]
+import cache
 
 type
   AuthManager* = ref object
@@ -32,10 +33,12 @@ type
     body*: string
     headers*: HttpHeaders
 
+
   Context* = ref object
     request*: JazzyRequest
     response*: JazzyResponse
     auth*: AuthManager
+    cache*: JazzyCache
 
   HandlerProc* = proc(ctx: Context): Future[void] {.gcsafe, closure.}
 

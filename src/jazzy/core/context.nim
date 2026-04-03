@@ -1,5 +1,5 @@
 import std/[json, httpcore, tables, strutils, options]
-import types
+import types, cache
 import ../utils/json_helpers
 import validation
 import ../auth/jwt_manager
@@ -16,6 +16,8 @@ proc newContext*(req: JazzyRequest): Context =
   result.response = newJazzyResponse()
   # Default headers
   result.response.headers["Content-Type"] = "text/html"
+
+  result.cache = AppCache
 
   result.auth = new(AuthManager)
   result.auth.isLoggedIn = false
