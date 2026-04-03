@@ -3,6 +3,7 @@ import types, cache
 import ../utils/json_helpers
 import validation
 import ../auth/jwt_manager
+import ../auth/basic_auth
 
 import config
 
@@ -28,18 +29,13 @@ proc newContext*(req: JazzyRequest): Context =
 
   if basicUser.len > 0:
     let basicPass = getConfig("BASIC_AUTH_PASSWORD", "")
-    if not req.headers.isNil and req.headers.hasKey("Authorization"):
-      let authHeader = req.headers["Authorization"]
-      if authHeader.startsWith("Basic "):
-        let encoded = authHeader[6..^1]
-        let decoded = decode(encoded)
-        let parts = decoded.split(":")
-        if parts.len >= 2:
-          let reqUser = parts[0]
-          let reqPass = decoded.substr(reqUser.len + 1)
-          if reqUser == basicUser and reqPass == basicPass:
-            result.auth.isLoggedIn = true
-            result.auth.user = some(%*{"username": reqUser})
+    let reqCtx = result
+    if reqCtx.validateBasicAuth(basicUser, basicPass):
+      let authHeader = reqCtx.request.headers["Authorization"]
+      let decoded = decode(authHeader[6..^1])
+      let parts = decoded.split(":")
+      result.auth.isLoggedIn = true
+      result.auth.user = some(%*{"username": parts[0]})
   else:
     # Check for Bearer token (JWT)
     if not req.headers.isNil and req.headers.hasKey("Authorization"):
