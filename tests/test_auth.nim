@@ -116,8 +116,10 @@ suite "Auth System Tests":
     let manager = newJwtManager("s3cr3t")
     let token = manager.sign(%*{"user": "alice"})
 
+    # Change last character of signature
     var badToken = token
-    badToken[^1] = if badToken[^1] == 'a': 'b' else: 'a'
+    if badToken[^1] == 'a': badToken[^1] = 'b'
+    else: badToken[^1] = 'a'
 
     check manager.verify(badToken).isNone()
 
