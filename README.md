@@ -109,7 +109,7 @@ if ctx.check():
 ```
 
 #### Basic Auth
-Configure Basic Auth through environment variables:
+Jazzy supports Basic Auth. Add to your `.env` file:
 
 ```env
 BASIC_AUTH_USER=admin
