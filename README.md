@@ -109,23 +109,21 @@ if ctx.check():
 ```
 
 #### Basic Auth
-Jazzy supports Basic Auth. Add to your `.env` file:
+Jazzy supports Basic Auth via the `basicAuthGuard` middleware.
+
+Add credentials to your `.env` file:
 
 ```env
 BASIC_AUTH_USER=admin
 BASIC_AUTH_PASSWORD=secret123
 ```
 
-When `BASIC_AUTH_USER` is set, Jazzy automatically uses Basic Auth instead of JWT. Request with:
-
-```bash
-curl -H "Authorization: Basic YWRtaW46c2VjcmV0MTIz" http://localhost:8080/protected
-```
-
-For explicit per-route protection, use `basicAuthGuard` middleware:
+Then use the `basicAuthGuard` middleware on routes that need protection:
 
 ```nim
 Route.groupPath("/admin", basicAuthGuard):
+  Route.get("/", admin_controller.index)
+```
   Route.get("/", admin_controller.index)
 ```
 

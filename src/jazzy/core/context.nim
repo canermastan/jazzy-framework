@@ -1,9 +1,8 @@
-import std/[json, httpcore, tables, strutils, options, base64]
+import std/[json, httpcore, tables, strutils, options]
 import types, cache
 import ../utils/json_helpers
 import validation
 import ../auth/jwt_manager
-import ../auth/basic_auth
 
 import config
 
@@ -25,29 +24,17 @@ proc newContext*(req: JazzyRequest): Context =
 
   let authSecret = getConfig("JWT_SECRET", "CHANGE_ME_IN_PROD_SECRET_KEY")
 
-  let basicUser = getConfig("BASIC_AUTH_USER", "")
-
-  if basicUser.len > 0:
-    let basicPass = getConfig("BASIC_AUTH_PASSWORD", "")
-    let reqCtx = result
-    if reqCtx.validateBasicAuth(basicUser, basicPass):
-      let authHeader = reqCtx.request.headers["Authorization"]
-      let decoded = decode(authHeader[6..^1])
-      let parts = decoded.split(":")
-      result.auth.isLoggedIn = true
-      result.auth.user = some(%*{"username": parts[0]})
-  else:
-    # Check for Bearer token (JWT)
-    if not req.headers.isNil and req.headers.hasKey("Authorization"):
-      let authHeader = req.headers["Authorization"]
-      if authHeader.startsWith("Bearer "):
-        let token = authHeader[7..^1]
-        let jwtParams = newJwtManager(authSecret)
-        let payload = jwtParams.verify(token)
-        if payload.isSome:
-          result.auth.isLoggedIn = true
-          result.auth.user = payload
-          result.auth.token = token
+  # Check for Bearer token (JWT)
+  if not req.headers.isNil and req.headers.hasKey("Authorization"):
+    let authHeader = req.headers["Authorization"]
+    if authHeader.startsWith("Bearer "):
+      let token = authHeader[7..^1]
+      let jwtParams = newJwtManager(authSecret)
+      let payload = jwtParams.verify(token)
+      if payload.isSome:
+        result.auth.isLoggedIn = true
+        result.auth.user = payload
+        result.auth.token = token
 
   let ctx = result
 
