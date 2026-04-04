@@ -25,7 +25,7 @@ proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
 
   let authSecret = getConfig("JWT_SECRET", "CHANGE_ME_IN_PROD_SECRET_KEY")
 
-  # Check for Bearer token
+  # Check for Bearer token (JWT)
   if not req.headers.isNil and req.headers.hasKey("Authorization"):
     let authHeader = req.headers["Authorization"]
     if authHeader.startsWith("Bearer "):
