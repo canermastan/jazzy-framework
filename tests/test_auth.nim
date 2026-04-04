@@ -208,3 +208,56 @@ suite "Auth System Tests":
 
     check basicCtx.check() == false
     check basicCtx.response.code == 401
+
+  test "basicAuthGuard should return WWW-Authenticate header on 401":
+    putEnv("BASIC_AUTH_USER", "admin")
+    putEnv("BASIC_AUTH_PASSWORD", "secret123")
+
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    let basicCtx = newContext(basicReq)
+
+    proc testNext(ctx: Context) {.async.} = discard
+    waitFor basicAuthGuard(basicCtx, testNext)
+
+    check basicCtx.response.code == 401
+    check basicCtx.response.headers.hasKey("WWW-Authenticate")
+    check basicCtx.response.headers["WWW-Authenticate"] == "Basic realm=\"Jazzy\""
+
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
+
+  test "basicAuthGuard should handle invalid base64 and return 401":
+    putEnv("BASIC_AUTH_USER", "admin")
+    putEnv("BASIC_AUTH_PASSWORD", "secret123")
+
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    # Sending non-base64 characters (%)
+    basicReq.headers["Authorization"] = "Basic %%%INVALID%%%"
+    let basicCtx = newContext(basicReq)
+
+    proc testNext(ctx: Context) {.async.} = discard
+    waitFor basicAuthGuard(basicCtx, testNext)
+
+    check basicCtx.check() == false
+    check basicCtx.response.code == 401
+
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
+
+  test "basicAuthGuard should support passwords containing colons":
+    putEnv("BASIC_AUTH_USER", "admin")
+    putEnv("BASIC_AUTH_PASSWORD", "pass:with:colons")
+
+    let credentials = encode("admin:pass:with:colons")
+    let basicReq = JazzyRequest(headers: newHttpHeaders())
+    basicReq.headers["Authorization"] = "Basic " & credentials
+    let basicCtx = newContext(basicReq)
+
+    proc testNext(ctx: Context) {.async.} = discard
+    waitFor basicAuthGuard(basicCtx, testNext)
+
+    check basicCtx.check() == true
+    check basicCtx.user.get["username"].getStr == "admin"
+
+    putEnv("BASIC_AUTH_USER", "")
+    putEnv("BASIC_AUTH_PASSWORD", "")
