@@ -10,14 +10,15 @@ import config
 
 export types
 
-proc newContext*(req: JazzyRequest): Context =
+proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
   new(result)
   result.request = req
   result.response = newJazzyResponse()
   # Default headers
   result.response.headers["Content-Type"] = "text/html"
 
-  result.cache = AppCache
+  {.cast(gcsafe).}:
+    result.cache = AppCache
 
   result.auth = new(AuthManager)
   result.auth.isLoggedIn = false
