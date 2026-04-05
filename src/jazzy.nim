@@ -4,7 +4,7 @@ import jazzy/db/[database, builder, schema]
 import jazzy/utils/[json_helpers, ip]
 import jazzy/auth/[security, middlewares]
 
-export server, app, config, middlewares, cache
+export server, app, config, middlewares, cache, bodyLimit
 export context, types, router, static_files, validation
 export database, builder, schema
 export json_helpers, ip
