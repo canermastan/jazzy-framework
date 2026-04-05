@@ -1,3 +1,5 @@
+import std/[os, strutils]
+
 # Package
 
 version       = "0.2.1"
@@ -15,3 +17,10 @@ requires "mummy >= 0.4.0"
 requires "jwt >= 0.1.0"
 requires "nimcrypto >= 0.5.4"
 requires "tiny_sqlite >= 0.2.0"
+
+# Tasks
+
+task test, "Run all tests":
+  for file in listFiles("tests"):
+    if file.startsWith("tests" / "test_") and file.endsWith(".nim"):
+      exec "nim c -r --path:src --hints:off --verbosity:0 " & file
