@@ -10,7 +10,7 @@ type
 method serve*(driver: MummyDriver, port: int, address: string,
     handler: HandlerProc) {.async.} =
 
-  proc mummyHandler(req: Request) =
+  proc mummyHandler(req: Request) {.gcsafe.} =
     let jReq = new(JazzyRequest)
     jReq.body = req.body
     jReq.url = req.uri

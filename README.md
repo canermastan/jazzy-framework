@@ -108,6 +108,23 @@ if ctx.check():
   echo "User is logged in!"
 ```
 
+#### Basic Auth
+Jazzy supports Basic Auth via the `basicAuthGuard` middleware.
+
+Add credentials to your `.env` file:
+
+```env
+BASIC_AUTH_USER=admin
+BASIC_AUTH_PASSWORD=secret123
+```
+
+Then use the `basicAuthGuard` middleware on routes that need protection:
+
+```nim
+Route.groupPath("/admin", basicAuthGuard):
+  Route.get("/", admin_controller.index)
+```
+
 ### 4. CONFIGURATION
 Jazzy automatically reads your `.env` file.
 

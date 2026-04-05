@@ -4,7 +4,7 @@ import nimcrypto/hmac
 import nimcrypto/sha2
 import std/[strutils, base64]
 
-proc constantTimeCompare(a, b: string): bool =
+proc constantTimeCompare*(a, b: string): bool =
   if a.len != b.len:
     return false
   var diff: byte = 0
