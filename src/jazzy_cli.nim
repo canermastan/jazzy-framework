@@ -53,6 +53,7 @@ proc newProject(name: string) =
   createFile(name / fmt"{name}.nimble", nimbleTemplate(name))
   createFile(name / "config.nims", configNimsTemplate())
   createFile(name / ".gitignore", gitignoreTemplate())
+  createFile(name / ".env", envTemplate())
 
   # Source files
   createFile(name / "src" / "app.nim", appTemplate(name))

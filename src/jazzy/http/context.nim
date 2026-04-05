@@ -95,6 +95,12 @@ proc input*(ctx: Context, key: string, default = ""): string =
 
   return default
 
+proc param*(ctx: Context, key: string, default: string = ""): string =
+  ## Access route parameters (e.g., /users/:id -> ctx.param("id"))
+  if ctx.request.params.hasKey(key):
+    return ctx.request.params[key]
+  return default
+
 proc bodyAs*[T](ctx: Context, target: typedesc[T]): T =
   if ctx.request.body.len == 0:
     return

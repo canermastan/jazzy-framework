@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jazzy Console | Dev UI</title>
+    <link rel="stylesheet" href="/dev-ui/assets/pico.min.css">
+    <script defer src="/dev-ui/assets/alpine.min.js"></script>
+    <style>
+        :root {
+            --pico-font-size: 14px;
+            --pico-border-radius: 8px;
+        }
+
+        body {
+            display: flex;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--pico-background-color);
+        }
+
+        /* Sidebar Styles */
+        aside {
+            width: 260px;
+            border-right: 1px solid var(--pico-muted-border-color);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            background: var(--pico-card-background-color);
+        }
+
+        aside h1 {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        aside nav ul {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        aside nav li {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        aside nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 10px 15px;
+            border-radius: var(--pico-border-radius);
+            text-decoration: none;
+            color: var(--pico-secondary);
+            transition: all 0.2s;
+        }
+
+        aside nav a.active {
+            background: var(--pico-primary-background);
+            color: var(--pico-primary-inverse);
+        }
+
+        aside nav a:hover:not(.active) {
+            background: var(--pico-secondary-hover-background);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--pico-muted-border-color);
+            padding-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Dashboard Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .stat-card {
+            padding: 1.5rem;
+            border: 1px solid var(--pico-muted-border-color);
+            border-radius: 12px;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--pico-primary);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: var(--pico-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        /* Method Badges */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            font-family: monospace;
+        }
+
+        .badge-get {
+            background: #2e7d32;
+            color: #fff;
+        }
+
+        .badge-post {
+            background: #1565c0;
+            color: #fff;
+        }
+
+        .badge-put {
+            background: #ed6c02;
+            color: #fff;
+        }
+
+        .badge-delete {
+            background: #d32f2f;
+            color: #fff;
+        }
+
+        pre {
+            background: #1e1e1e;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            border: 1px solid #333;
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2;
+            fill: none;
+            stroke: currentColor;
+        }
+    </style>
+</head>
+
+<body x-data="devUi()">
+    <!-- Sidebar -->
+    <aside>
+        <h1>
+            <svg class="icon" viewBox="0 0 24 24" style="color: var(--pico-primary); width: 28px; height: 28px;">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor" />
+            </svg>
+            Jazzy Console
+        </h1>
+        <nav>
+            <ul>
+                <li><a href="#" @click.prevent="page = 'dashboard'" :class="page === 'dashboard' ? 'active' : ''">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M3 3h7v7H3V3zm11 0h7v7h-7V3zm0 11h7v7h-7v-7zm-11 0h7v7H3v-7z" />
+                        </svg>
+                        Dashboard</a></li>
+                <li><a href="#" @click.prevent="page = 'routes'" :class="page === 'routes' ? 'active' : ''">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path
+                                d="M9 6.17L4.83 12l4.17 5.83L10.17 16.5 7.17 12l3-4.5L9 6.17zm6 0l-1.17 1.17L16.83 12l-3 4.5 1.17 1.17L19.17 12l-4.17-5.83z" />
+                        </svg>
+                        Routes</a></li>
+                <li><a href="#" @click.prevent="page = 'env'" :class="page === 'env' ? 'active' : ''">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path
+                                d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
+                        </svg>
+                        Environment</a></li>
+                <li><a href="#" @click.prevent="page = 'database'" :class="page === 'database' ? 'active' : ''">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path
+                                d="M12 2C6.48 2 2 4.02 2 6.5s4.48 4.5 10 4.5 10-2.02 10-4.5S17.52 2 12 2zm0 13c-5.52 0-10-2.02-10-4.5V13c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5v-2.5c0 2.48-4.48 4.5-10 4.5zm0 4.5c-5.52 0-10-2.02-10-4.5v2.5c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5v-2.5c0 2.48-4.48 4.5-10 4.5z" />
+                        </svg>
+                        Database</a></li>
+                <li><a href="#" @click.prevent="page = 'cache'" :class="page === 'cache' ? 'active' : ''">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path
+                                d="M20 13c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2 .55 0 1.05-.22 1.41-.59.37-.36.59-.86.59-1.41V5h12v6c0 1.1.9 2 2 2zM4 15v2h16v-2H4zm0 4v2h16v-2H4z" />
+                        </svg>
+                        Cache Management</a></li>
+            </ul>
+        </nav>
+        <div style="margin-top: auto; padding-top: 1rem; font-size: 0.8rem; color: var(--pico-muted-color);">
+            <hr>
+            Status: <span style="color: #2e7d32;">● Connected</span><br>
+            Version: v0.3.0-dev
+        </div>
+    </aside>
+
+    <!-- Content -->
+    <main>
+        <header class="page-header">
+            <h2 x-text="page.charAt(0).toUpperCase() + page.slice(1)"></h2>
+            <a href="/" target="_blank" class="outline" role="button" style="font-size: 0.8rem; padding: 5px 15px;">Open
+                App</a>
+        </header>
+
+        <!-- Dashboard Page -->
+        <template x-if="page === 'dashboard'">
+            <div class="card-grid">
+                <div class="stat-card" @click="page = 'routes'">
+                    <h3>Total Routes</h3>
+                    <div class="value" x-text="routes.length">0</div>
+                    <small style="color: var(--pico-primary);">View all endpoints →</small>
+                </div>
+                <div class="stat-card" @click="page = 'env'">
+                    <h3>Config Variables</h3>
+                    <div class="value" x-text="Object.keys(env).length">0</div>
+                    <small>System environment</small>
+                </div>
+                <div class="stat-card" @click="page = 'database'">
+                    <h3>Database Tables</h3>
+                    <div class="value" x-text="tables.length">0</div>
+                    <small>View schema & data →</small>
+                </div>
+            </div>
+        </template>
+
+        <!-- Routes Page -->
+        <template x-if="page === 'routes'">
+            <article>
+                <header>Active Routes</header>
+                <table class="striped">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">Method</th>
+                            <th>Path</th>
+                            <th>Middleware Stack</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="route in routes" :key="route.path">
+                            <tr>
+                                <td><span :class="'badge badge-' + route.method.toLowerCase()"
+                                        x-text="route.method"></span></td>
+                                <td><code x-text="route.path"></code></td>
+                                <td>
+                                    <template x-for="mw in route.middlewares.split(',')" :key="mw">
+                                        <small x-if="mw.trim().length > 0" x-text="mw.trim()"
+                                            style="background: var(--pico-code-background-color); padding: 2px 6px; border-radius: 4px; margin-right: 4px;"></small>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </article>
+        </template>
+
+        <!-- Environment Page -->
+        <template x-if="page === 'env'">
+            <article>
+                <header>System Variables</header>
+                <div class="overflow-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Key</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(value, key) in env" :key="key">
+                                <tr>
+                                    <td><strong x-text="key"></strong></td>
+                                    <td><code x-text="value"></code></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </template>
+        <!-- Cache Management Page -->
+        <template x-if="page === 'cache'">
+            <article>
+                <header style="display: flex; justify-content: space-between; align-items: center;">
+                    Cache Status
+                    <button class="outline contrast" @click="clearCache()"
+                        style="font-size: 0.7rem; padding: 5px 10px;">Clear All Cache</button>
+                </header>
+                <div class="overflow-auto">
+                    <table class="striped">
+                        <thead>
+                            <tr>
+                                <th>Key</th>
+                                <th>TTL (Expires In)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="item in cache" :key="item.key">
+                                <tr>
+                                    <td><code x-text="item.key"></code></td>
+                                    <td x-text="item.ttl"></td>
+                                </tr>
+                            </template>
+                            <template x-if="cache.length === 0">
+                                <tr>
+                                    <td colspan="2" style="text-align: center; color: var(--pico-secondary);">Cache is
+                                        empty</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </template>
+        <!-- Database Explorer Page -->
+        <template x-if="page === 'database'">
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                <template x-if="dbError">
+                    <article>
+                        <div
+                            style="padding: 2rem; text-align: center; border: 1px dashed var(--pico-muted-border-color); border-radius: 8px;">
+                            <svg class="icon" viewBox="0 0 24 24"
+                                style="width: 48px; height: 48px; color: var(--pico-secondary); margin-bottom: 1rem;">
+                                <path
+                                    d="M12 2C6.48 2 2 4.02 2 6.5s4.48 4.5 10 4.5 10-2.02 10-4.5S17.52 2 12 2zm0 13c-5.52 0-10-2.02-10-4.5V13c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5v-2.5c0 2.48-4.48 4.5-10 4.5zm0 4.5c-5.52 0-10-2.02-10-4.5v2.5c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5v-2.5c0 2.48-4.48 4.5-10 4.5z" />
+                            </svg>
+                            <p x-text="dbError" style="margin-bottom: 0; font-weight: bold;"></p>
+                            <small>Configure a database in your app to use this feature.</small>
+                        </div>
+                    </article>
+                </template>
+
+                <template x-if="!dbError">
+                    <div style="display: flex; flex-direction: column; gap: 2rem;">
+                        <!-- SQL Console -->
+                        <article>
+                            <header>SQL Console</header>
+                            <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                                <small style="color: var(--pico-secondary); margin-right: 0.5rem;">Quick:</small>
+                                <template x-for="table in tables" :key="'q_' + table.name">
+                                    <button class="outline secondary" @click="setSql('SELECT * FROM ' + table.name + ' LIMIT 20')"
+                                        style="font-size: 0.65rem; padding: 2px 8px;" x-text="table.name"></button>
+                                </template>
+                            </div>
+                            <textarea x-model="sqlQuery" placeholder="Enter SQL query here..."
+                                style="font-family: monospace; font-size: 0.9rem; min-height: 100px; margin-bottom: 1rem; background: #1a1a1a; color: #fff;"></textarea>
+                            <footer style="display: flex; justify-content: space-between; align-items: center;">
+                                <small x-text="queryStatus"
+                                    :style="{color: queryStatus.includes('Error') ? '#d32f2f' : '#2e7d32'}"></small>
+                                <button @click="runQuery()" style="font-size: 0.8rem; padding: 5px 20px;">Execute Query</button>
+                            </footer>
+                        </article>
+
+                        <!-- Query Results -->
+                        <template x-if="queryResult">
+                            <article>
+                                <header style="display: flex; justify-content: space-between; align-items: center;">
+                                    Query Result
+                                    <button class="outline secondary" @click="queryResult = null"
+                                        style="font-size: 0.7rem; padding: 2px 10px;">Clear Result</button>
+                                </header>
+                                <div style="overflow-x: auto;">
+                                    <template x-if="queryResult.type === 'data'">
+                                        <table class="striped" style="font-size: 0.8rem;">
+                                            <thead>
+                                                <tr>
+                                                    <template x-for="col in Object.keys(queryResult.data[0] || {})"
+                                                        :key="col">
+                                                        <th x-text="col"></th>
+                                                    </template>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template x-for="row in queryResult.data">
+                                                    <tr>
+                                                        <template x-for="val in Object.values(row)">
+                                                            <td x-text="val"></td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </template>
+                                    <template x-if="queryResult.type === 'exec'">
+                                        <div
+                                            style="padding: 1rem; background: rgba(var(--pico-primary-rgb), 0.1); border-radius: 8px;">
+                                            <strong>Success!</strong> Affected rows: <span
+                                                x-text="queryResult.affected"></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="queryResult.type === 'data' && queryResult.data.length === 0">
+                                        <p style="text-align: center; padding: 1rem;">No data found.</p>
+                                    </template>
+                                </div>
+                            </article>
+                        </template>
+
+                        <!-- Tables List -->
+                        <article>
+                            <header>Database Tables</header>
+                            <table class="striped">
+                                <thead>
+                                    <tr>
+                                        <th>Table Name</th>
+                                        <th>Rows</th>
+                                        <th style="text-align: right;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="table in tables" :key="table.name">
+                                        <tr>
+                                            <td>
+                                                <strong x-text="table.name"></strong>
+                                                <div x-show="selectedTable === table.name"
+                                                    style="margin-top: 1rem; border-top: 1px solid var(--pico-muted-border-color); padding-top: 1rem;">
+                                                    <h5
+                                                        style="font-size: 0.8rem; text-transform: uppercase; color: var(--pico-secondary);">
+                                                        Table Schema</h5>
+                                                    <table style="font-size: 0.75rem;">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Column</th>
+                                                                <th>Type</th>
+                                                                <th>PK</th>
+                                                                <th>NotNull</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <template x-for="col in tableSchema" :key="col.name">
+                                                                <tr>
+                                                                    <td><code x-text="col.name"></code></td>
+                                                                    <td x-text="col.type"></td>
+                                                                    <td x-text="col.pk ? 'Yes' : ''"></td>
+                                                                    <td x-text="col.notnull ? 'Yes' : ''"></td>
+                                                                </tr>
+                                                            </template>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </td>
+                                            <td x-text="table.count"></td>
+                                            <td style="text-align: right;">
+                                                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                                    <button class="outline" @click="toggleSchema(table.name)"
+                                                        style="font-size: 0.7rem; padding: 2px 10px;"
+                                                        x-text="selectedTable === table.name ? 'Hide Schema' : 'Schema'"></button>
+                                                    <button class="outline"
+                                                        @click="setSql('SELECT * FROM ' + table.name + ' LIMIT 50'); runQuery();"
+                                                        style="font-size: 0.7rem; padding: 2px 10px;">Browse</button>
+                                                    <button class="outline secondary"
+                                                        @click="generateInsert(table.name)"
+                                                        style="font-size: 0.7rem; padding: 2px 10px;">Insert
+                                                        Template</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </article>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </main>
+
+    <script>
+        function devUi() {
+            return {
+                page: 'dashboard',
+                routes: [],
+                env: {},
+                cache: [],
+                tables: [],
+                tableSchema: [],
+                selectedTable: null,
+                dbError: null,
+                sqlQuery: '',
+                queryResult: null,
+                queryStatus: '',
+                async init() {
+                    await this.refreshData();
+                    setInterval(() => {
+                        if (this.page === 'cache' || this.page === 'dashboard') {
+                            this.refreshData();
+                        }
+                    }, 5000);
+                },
+                async refreshData() {
+                    try {
+                        const routesRes = await fetch('/dev-ui/api/routes');
+                        this.routes = await routesRes.json();
+
+                        const envRes = await fetch('/dev-ui/api/env');
+                        this.env = await envRes.json();
+
+                        const cacheRes = await fetch('/dev-ui/api/cache');
+                        this.cache = await cacheRes.json();
+
+                        const tablesRes = await fetch('/dev-ui/api/db/tables');
+                        if (tablesRes.status === 404) {
+                            this.dbError = "Database not configured";
+                            this.tables = [];
+                        } else {
+                            this.tables = await tablesRes.json();
+                            this.dbError = null;
+                        }
+                    } catch (e) {
+                        console.error("Failed to fetch dev-ui data:", e);
+                    }
+                },
+                setSql(sql) {
+                    this.sqlQuery = sql;
+                    this.queryStatus = 'Ready to execute';
+                },
+                async runQuery() {
+                    if (!this.sqlQuery.trim()) return;
+                    this.queryStatus = 'Executing...';
+                    try {
+                        const res = await fetch('/dev-ui/api/db/query', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ sql: this.sqlQuery })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            this.queryResult = data;
+                            this.queryStatus = 'Query executed successfully';
+                            this.refreshData(); // Refresh tables count
+                        } else {
+                            this.queryStatus = 'Error: ' + data.error;
+                            this.queryResult = null;
+                        }
+                    } catch (e) {
+                        this.queryStatus = 'Error: Connection failed';
+                    }
+                },
+                async clearCache() {
+                    if (!confirm('Are you sure you want to clear all cache?')) return;
+                    await fetch('/dev-ui/api/cache/clear', { method: 'POST' });
+                    await this.refreshData();
+                },
+                async toggleSchema(tableName) {
+                    if (this.selectedTable === tableName) {
+                        this.selectedTable = null;
+                        this.tableSchema = [];
+                    } else {
+                        this.selectedTable = tableName;
+                        try {
+                            const res = await fetch(`/dev-ui/api/db/schema/${tableName}`);
+                            this.tableSchema = await res.json();
+                        } catch (e) {
+                            console.error("Failed to fetch schema:", e);
+                        }
+                    }
+                },
+                async generateInsert(tableName) {
+                    let schema = [];
+                    try {
+                        const res = await fetch(`/dev-ui/api/db/schema/${tableName}`);
+                        schema = await res.json();
+                    } catch (e) {
+                        console.error("Failed to fetch schema for insert:", e);
+                        return;
+                    }
+
+                    const cols = schema.filter(c => !c.pk).map(c => c.name);
+                    const placeholders = cols.map(c => `'...'`);
+                    this.sqlQuery = `INSERT INTO ${tableName} (${cols.join(', ')})\nVALUES (${placeholders.join(', ')})`;
+                    this.queryStatus = 'Template generated. Edit values before executing.';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

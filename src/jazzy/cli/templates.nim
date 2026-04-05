@@ -87,6 +87,11 @@ nimblecache/
 Thumbs.db
 """
 
+proc envTemplate*(): string =
+  result = """# Application Environment (development | production)
+APP_ENV=development
+"""
+
 proc testConfigTemplate*(): string =
   result = """switch("path", "$projectDir/../src")
 """

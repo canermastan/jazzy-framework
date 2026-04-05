@@ -52,7 +52,7 @@ proc limit*(qb: QueryBuilder, n: int): QueryBuilder =
   qb.limit = n
   return qb
 
-proc valToJson(val: DbValue): JsonNode =
+proc valToJson*(val: DbValue): JsonNode =
   case val.kind
   of sqliteInteger: return %val.intVal
   of sqliteReal: return %val.floatVal
@@ -60,7 +60,7 @@ proc valToJson(val: DbValue): JsonNode =
   of sqliteBlob: return %"<blob>"
   of sqliteNull: return newJNull()
 
-proc getColumns(tableName: string): seq[string] =
+proc getColumns*(tableName: string): seq[string] =
   result = @[]
   withDB:
     for row in database.getConn().iterate("PRAGMA table_info(" & tableName & ")"):
