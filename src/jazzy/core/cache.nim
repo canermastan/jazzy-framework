@@ -73,6 +73,18 @@ proc delete*(c: JazzyCache, key: string) =
   defer: release(c.lock)
   c.data.del(key)
 
+proc clear*(c: JazzyCache) =
+  acquire(c.lock)
+  defer: release(c.lock)
+  c.data.clear()
+
+proc getAllKeys*(c: JazzyCache): seq[tuple[key: string, expiresAt: float]] =
+  acquire(c.lock)
+  defer: release(c.lock)
+  result = @[]
+  for k, v in c.data:
+    result.add((k, v.expiresAt))
+
 proc prune*(c: JazzyCache) =
   acquire(c.lock)
   defer: release(c.lock)

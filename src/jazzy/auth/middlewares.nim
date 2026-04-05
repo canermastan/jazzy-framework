@@ -1,9 +1,9 @@
-import ../http/[context, types]
+import ../http/[context, types, router]
 import std/[asyncdispatch, json, httpcore, base64, strutils, options]
 import ../auth/basic_auth
 import ../core/config
 
-let guard*: MiddlewareProc = proc(ctx: Context, next: HandlerProc) {.async.} =
+let guardProc*: MiddlewareProc = proc(ctx: Context, next: HandlerProc) {.async.} =
   ## Middleware that ensures the user is authenticated.
   ## Returns 401 Unauthorized if not logged in.
   if not ctx.check():
@@ -11,7 +11,9 @@ let guard*: MiddlewareProc = proc(ctx: Context, next: HandlerProc) {.async.} =
   else:
     await next(ctx)
 
-let basicAuthGuard*: MiddlewareProc = proc(ctx: Context,
+let guard* = Middleware(name: "AuthGuard", handler: guardProc)
+
+let basicAuthGuardProc*: MiddlewareProc = proc(ctx: Context,
     next: HandlerProc) {.async.} =
   ## Middleware that enforces Basic Auth authentication.
   ## Requires BASIC_AUTH_USER and BASIC_AUTH_PASSWORD in .env file.
@@ -38,3 +40,5 @@ let basicAuthGuard*: MiddlewareProc = proc(ctx: Context,
     discard
 
   await next(ctx)
+
+let basicAuthGuard* = Middleware(name: "BasicAuthGuard", handler: basicAuthGuardProc)

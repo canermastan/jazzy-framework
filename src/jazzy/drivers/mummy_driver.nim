@@ -66,5 +66,4 @@ method serve*(driver: MummyDriver, port: int, address: string,
         req.respond(500, @[], "Internal Server Error: " & e.msg)
 
   driver.server = newServer(mummyHandler)
-  echo "🎷 Jazzy is dancing on http://" & address & ":" & $port
   driver.server.serve(Port(port), address)

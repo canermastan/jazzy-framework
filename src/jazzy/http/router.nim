@@ -6,17 +6,22 @@ export types
 
 type
   RouteDef* = object
-    httpMethod: HttpMethod
-    path: string
-    parts: seq[string] # Pre-split path for faster matching
-    isDynamic: bool    # True if contains ':'
-    handler: HandlerProc
+    httpMethod*: HttpMethod
+    path*: string
+    parts*: seq[string]
+    isDynamic*: bool
+    handler*: HandlerProc
+    middlewares*: seq[string]
+
+  Middleware* = object
+    name*: string
+    handler*: MiddlewareProc
 
   RouterStatic = ref object
     routes*: seq[RouteDef]
     staticRoutes*: array[HttpMethod, Table[string,
         RouteDef]]
-    currentStack: seq[MiddlewareProc]
+    currentStack: seq[Middleware]
     currentPrefix: string
 
 proc initRouter(): RouterStatic =
@@ -36,11 +41,14 @@ proc addRoute(router: RouterStatic, httpMethod: HttpMethod, path: string,
     handler: HandlerProc) =
   # Compose middleware
   var composedHandler = handler
+  var mwNames: seq[string] = @[]
+  
   for i in countdown(router.currentStack.len - 1, 0):
     let mw = router.currentStack[i]
     let next = composedHandler
+    mwNames.add(mw.name)
     composedHandler = proc(ctx: Context): Future[void] {.async.} =
-      await mw(ctx, next)
+      await mw.handler(ctx, next)
 
   # Handle Prefix
   var fullPath = path
@@ -64,7 +72,8 @@ proc addRoute(router: RouterStatic, httpMethod: HttpMethod, path: string,
     path: fullPath,
     parts: parts,
     isDynamic: isDynamic,
-    handler: composedHandler
+    handler: composedHandler,
+    middlewares: mwNames
   )
 
   router.routes.add(routeDef)
@@ -72,19 +81,19 @@ proc addRoute(router: RouterStatic, httpMethod: HttpMethod, path: string,
   if not isDynamic:
     router.staticRoutes[httpMethod][fullPath] = routeDef
 
-template group*(router: RouterStatic, middlewares: seq[MiddlewareProc],
+template group*(router: RouterStatic, middlewaresList: seq[Middleware],
     body: untyped) =
   let prevLen = router.currentStack.len
-  router.currentStack.add(middlewares)
+  router.currentStack.add(middlewaresList)
   body
   router.currentStack.setLen(prevLen)
 
-template group*(router: RouterStatic, middleware: MiddlewareProc,
+template group*(router: RouterStatic, middlewareItem: Middleware,
     body: untyped) =
-  router.group(@[middleware], body)
+  router.group(@[middlewareItem], body)
 
-template groupPath*(router: RouterStatic, prefix: string, middlewares: seq[
-    MiddlewareProc], body: untyped) =
+template groupPath*(router: RouterStatic, prefix: string, middlewaresList: seq[
+    Middleware], body: untyped) =
   let prevPrefix = router.currentPrefix
   let prevLen = router.currentStack.len
 
@@ -96,14 +105,14 @@ template groupPath*(router: RouterStatic, prefix: string, middlewares: seq[
                              if prefix.startsWith("/"): prefix[
                              1..^1] else: prefix)
 
-  router.currentStack.add(middlewares)
+  router.currentStack.add(middlewaresList)
   body
   router.currentStack.setLen(prevLen)
   router.currentPrefix = prevPrefix
 
 template groupPath*(router: RouterStatic, prefix: string,
-    middleware: MiddlewareProc, body: untyped) =
-  router.groupPath(prefix, @[middleware], body)
+    middlewareItem: Middleware, body: untyped) =
+  router.groupPath(prefix, @[middlewareItem], body)
 
 template createRouteMethods(methodName, httpMethodEnum) =
   proc methodName*(router: RouterStatic, path: string, handler: proc(

@@ -1,5 +1,5 @@
 import std/[os, strutils, mimetypes, asyncdispatch, httpcore, times, asyncfile]
-import context, types
+import context, types, router
 
 var m: MimeDb
 m = newMimetypes()
@@ -12,17 +12,17 @@ proc getMimeType(ext: string): string =
   {.cast(gcsafe).}:
     result = m.getMimetype(ext, "application/octet-stream")
 
-proc serveStatic*(rootPath: string, urlPrefix: string = "/public"): MiddlewareProc =
+proc serveStatic*(rootPath: string, urlPrefix: string = "/public"): Middleware =
   let absRoot = normalizedPath(absolutePath(rootPath))
 
-  return proc(ctx: Context, next: HandlerProc): Future[void] {.async, gcsafe.} =
+  let handler: MiddlewareProc = proc(ctx: Context, next: HandlerProc): Future[void] {.async, gcsafe.} =
     let reqPath = ctx.request.path
 
     if not reqPath.startsWith(urlPrefix):
       await next(ctx)
       return
 
-    var relativePath = reqPath[urlPrefix.len .. ^1]
+    var relativePath = reqPath[urlPrefix.len..^1]
     if relativePath.startsWith("/"):
       relativePath = relativePath[1..^1]
 
@@ -40,10 +40,6 @@ proc serveStatic*(rootPath: string, urlPrefix: string = "/public"): MiddlewarePr
       await next(ctx)
       return
 
-    # File found - Process Caching
-    # FIXME: getLastModificationTime is a synchronous system call.
-    # For very high-concurrency static serving, this might be a tiny bottleneck.
-    # Future improvement: Use an async stat if available in the driver or OS.
     let lastMod = getLastModificationTime(fullPath).utc
     let etag = "\"" & $lastMod.toTime().toUnix() & "\""
 
@@ -55,8 +51,6 @@ proc serveStatic*(rootPath: string, urlPrefix: string = "/public"): MiddlewarePr
     let ext = splitFile(fullPath).ext.replace(".", "").toLowerAscii()
     let mime = getMimeType(ext)
 
-    # FIXME: Currently using readAll() which loads the entire file into memory.
-    # For very large files, this should be replaced with a streaming approach.
     let file = openAsync(fullPath, fmRead)
     var content = ""
     try:
@@ -76,3 +70,5 @@ proc serveStatic*(rootPath: string, urlPrefix: string = "/public"): MiddlewarePr
     ctx.response.body = content
     discard ctx.status(200)
     return
+  
+  return Middleware(name: "StaticFiles(" & rootPath & ")", handler: handler)
