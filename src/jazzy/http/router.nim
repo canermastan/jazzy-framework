@@ -1,5 +1,6 @@
 import std/[asyncdispatch, httpcore, strutils, tables, sequtils, json]
-import types, context, server
+import types, context
+import ../core/server
 
 export types
 

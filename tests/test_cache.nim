@@ -1,5 +1,6 @@
 import unittest, json, times, os
-import jazzy/core/[types, cache]
+import jazzy/http/types
+import jazzy/core/cache
 
 suite "Cache System Tests":
 

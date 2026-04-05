@@ -1,5 +1,5 @@
 import unittest, json, tables, options, httpcore, std/os
-import jazzy/core/[types, context]
+import jazzy/http/[types, context]
 
 suite "Context Logic Tests":
 

@@ -1,5 +1,5 @@
 import std/[strutils, net, httpcore]
-import config
+import ../core/config
 
 proc isPrivate*(ip: string): bool =
   if ip.len == 0: return false

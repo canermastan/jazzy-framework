@@ -1,6 +1,6 @@
 import unittest, tables
 import jazzy/utils/multipart
-import jazzy/core/types
+import jazzy/http/types
 
 suite "Multipart Parser Tests":
 

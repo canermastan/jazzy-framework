@@ -1,5 +1,5 @@
 import unittest, asyncdispatch, tables, httpcore
-import jazzy/core/[types, context, router]
+import jazzy/http/[types, context, router]
 
 suite "Router Logic Tests":
 

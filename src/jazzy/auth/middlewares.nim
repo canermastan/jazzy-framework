@@ -1,4 +1,4 @@
-import ../core/[context, types]
+import ../http/[context, types]
 import std/[asyncdispatch, json, httpcore, base64, strutils, options]
 import ../auth/basic_auth
 import ../core/config

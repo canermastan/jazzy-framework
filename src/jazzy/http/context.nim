@@ -1,10 +1,8 @@
 import std/[json, httpcore, tables, strutils, options, net]
-import types, cache, ip
-import ../utils/json_helpers
-import validation
+import types, validation
+import ../core/[cache, config]
+import ../utils/[json_helpers, ip]
 import ../auth/jwt_manager
-
-import config
 
 # const AuthSecret = "CHANGE_ME_IN_PROD_SECRET_KEY"
 

@@ -1,5 +1,5 @@
 import std/[httpcore, tables, asyncdispatch, json, options]
-import cache
+import ../core/cache
 
 type
   AuthManager* = ref object

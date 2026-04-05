@@ -1,5 +1,5 @@
 import unittest, json
-import jazzy/core/[types, validation]
+import jazzy/http/[types, validation]
 
 suite "Validation Tests":
 

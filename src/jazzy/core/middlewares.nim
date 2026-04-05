@@ -1,5 +1,5 @@
 import std/[asyncdispatch, httpcore]
-import types, context
+import ../http/[types, context]
 
 proc cors*(allowedOrigin: string = "*",
           allowedMethods: string = "GET, POST, PUT, DELETE, OPTIONS, PATCH",

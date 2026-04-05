@@ -1,5 +1,6 @@
 import std/asyncdispatch
-import types, context, server, router, static_files
+import ../http/[types, context, router, static_files]
+import server
 import ../drivers/mummy_driver
 
 type

@@ -1,5 +1,5 @@
 import unittest, std/[os, httpcore, json]
-import jazzy/core/[context, types]
+import jazzy/http/[context, types]
 
 suite "IP Extraction Logic":
   setup:

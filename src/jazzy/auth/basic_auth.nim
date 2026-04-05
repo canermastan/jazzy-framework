@@ -1,5 +1,5 @@
 import std/[base64, httpcore, strutils]
-import ../core/types
+import ../http/types
 import security
 
 proc validateBasicAuth*(ctx: Context; username, password: string): bool =

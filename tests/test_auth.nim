@@ -1,5 +1,5 @@
 import unittest, json, options, httpcore, strutils, base64, os, asyncdispatch
-import jazzy/core/[types, context]
+import jazzy/http/[types, context]
 import jazzy/auth/[jwt_manager, security, middlewares]
 
 suite "Auth System Tests":

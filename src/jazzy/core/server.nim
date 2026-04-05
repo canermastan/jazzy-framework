@@ -1,6 +1,5 @@
 import std/asyncdispatch
-import types
-import context
+import ../http/[types, context]
 
 export types
 

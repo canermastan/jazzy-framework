@@ -1,5 +1,5 @@
 import std/[strutils, tables]
-import ../core/types
+import ../http/types
 
 proc parseMultipart*(body: string, contentType: string): Table[string,
     UploadedFile] =
