@@ -1,5 +1,6 @@
 import std/[asyncdispatch, strutils, times]
-import ../http/[types, context, router, static_files]
+import ../http/[types, context, router]
+import ../http/static_files as sfiles
 import server, config, logger
 import ../drivers/mummy_driver
 import ../devui/devui
@@ -18,11 +19,18 @@ var Jazzy* = JazzyStatic(
 proc use*(app: var JazzyStatic, mw: Middleware) =
   app.middlewares.add(mw)
 
+proc serveStatic*(app: var JazzyStatic, path: string,
+    urlPrefix: string = "/public") =
+  app.use(sfiles.serveStatic(path, urlPrefix))
+
 proc static*(app: var JazzyStatic, path: string,
     urlPrefix: string = "/public") =
-  app.use(serveStatic(path, urlPrefix))
+  app.serveStatic(path, urlPrefix)
 
 proc serve*(app: JazzyStatic, port: int, address: string = "0.0.0.0") =
+  # Always ensure .env is loaded if present in current directory
+  loadEnv(silent = true)
+  
   let env = getAppEnv()
 
   # Auto-register Dev UI in development mode

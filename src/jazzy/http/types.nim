@@ -47,6 +47,10 @@ type
   MiddlewareProc* = proc(ctx: Context, next: HandlerProc): Future[
       void] {.gcsafe, closure.}
 
+  Middleware* = object
+    name*: string
+    handler*: MiddlewareProc
+
 proc newJazzyResponse*(): JazzyResponse =
   new(result)
   result.code = 200

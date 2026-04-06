@@ -1,5 +1,5 @@
 import std/[asyncdispatch, httpcore, strutils, tables, sequtils, json]
-import types, context
+import types, context, static_files
 import ../core/[server, logger]
 
 export types
@@ -12,10 +12,7 @@ type
     isDynamic*: bool
     handler*: HandlerProc
     middlewares*: seq[string]
-
-  Middleware* = object
-    name*: string
-    handler*: MiddlewareProc
+    isWildcard*: bool
 
   RouterStatic = ref object
     routes*: seq[RouteDef]
@@ -38,10 +35,10 @@ proc splitPath(path: string): seq[string] =
   path.strip(leading = true, trailing = true, chars = {'/'}).split('/')
 
 proc addRoute(router: RouterStatic, httpMethod: HttpMethod, path: string,
-    handler: HandlerProc) =
+    handler: HandlerProc, isWildcard: bool = false) =
   var composedHandler = handler
   var mwNames: seq[string] = @[]
-  
+
   for i in countdown(router.currentStack.len - 1, 0):
     let mw = router.currentStack[i]
     let next = composedHandler
@@ -71,12 +68,13 @@ proc addRoute(router: RouterStatic, httpMethod: HttpMethod, path: string,
     parts: parts,
     isDynamic: isDynamic,
     handler: composedHandler,
-    middlewares: mwNames
+    middlewares: mwNames,
+    isWildcard: isWildcard
   )
 
   router.routes.add(routeDef)
 
-  if not isDynamic:
+  if not isDynamic and not isWildcard:
     router.staticRoutes[httpMethod][fullPath] = routeDef
 
 template group*(router: RouterStatic, middlewaresList: seq[Middleware],
@@ -112,6 +110,19 @@ template groupPath*(router: RouterStatic, prefix: string,
     middlewareItem: Middleware, body: untyped) =
   router.groupPath(prefix, @[middlewareItem], body)
 
+proc staticRoute*(router: RouterStatic, directory: string, urlPath: string,
+    middlewares: seq[Middleware] = @[]) =
+  let handler: HandlerProc = proc(ctx: Context): Future[void] {.async, gcsafe.} =
+    if not await serveFile(ctx, directory, urlPath):
+      ctx.status(404).text("404 Not Found")
+
+  router.group(middlewares):
+    router.addRoute(HttpGet, urlPath, handler, isWildcard = true)
+
+proc staticRoute*(router: RouterStatic, directory: string, urlPath: string,
+    middlewareItem: Middleware) =
+  router.staticRoute(directory, urlPath, @[middlewareItem])
+
 template createRouteMethods(methodName, httpMethodEnum) =
   proc methodName*(router: RouterStatic, path: string, handler: proc(
       ctx: Context): Future[void]) =
@@ -135,6 +146,14 @@ createRouteMethods(options, HttpOptions)
 
 proc matchRoute(route: RouteDef, reqParts: seq[string], params: var Table[
     string, string]): bool =
+  if route.isWildcard:
+    if reqParts.len < route.parts.len:
+      return false
+    for i, part in route.parts:
+      if part != reqParts[i]:
+        return false
+    return true
+
   if route.parts.len != reqParts.len:
     return false
 
@@ -170,7 +189,7 @@ proc dispatch*(ctx: Context) {.async.} =
 
       for route in Route.routes:
         if route.httpMethod != reqMethod: continue
-        if not route.isDynamic: continue
+        if not route.isDynamic and not route.isWildcard: continue
 
         if not partsLoaded:
           reqParts = splitPath(reqPath)
@@ -191,7 +210,7 @@ proc dispatch*(ctx: Context) {.async.} =
 
         for route in Route.routes:
           if route.httpMethod == HttpOptions: continue
-          if not route.isDynamic: continue
+          if not route.isDynamic and not route.isWildcard: continue
 
           var attemptParams = initTable[string, string]()
           if matchRoute(route, reqParts, attemptParams):
@@ -214,7 +233,8 @@ proc dispatch*(ctx: Context) {.async.} =
       else:
         ctx.status(500).json(%*{"error": e.msg})
         {.cast(gcsafe).}:
-          Log.error($e.name & " on " & $reqMethod & " " & reqPath & " [" & reqId & "]")
+          Log.error($e.name & " on " & $reqMethod & " " & reqPath & " [" &
+              reqId & "]")
           Log.error("  → " & e.msg)
           let trace = e.getStackTrace()
           if trace.len > 0:
