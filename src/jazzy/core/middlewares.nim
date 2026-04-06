@@ -1,6 +1,43 @@
-import std/[asyncdispatch, httpcore, strutils, json]
+import std/[asyncdispatch, httpcore, strutils, json, times, math]
 import ../http/[types, context, router]
-import config
+import ../core/[config, cache]
+
+proc rateLimit*(maxRequests: int = 60, windowSeconds: int = 60): Middleware =
+  ## IP-based rate limiting middleware.
+  ## Default is 60 requests per 60 seconds (1 minute).
+  
+  let handler: MiddlewareProc = proc(ctx: Context, next: HandlerProc) {.async, gcsafe.} =
+    let ip = ctx.ip()
+    
+    # Generate a fixed-window key based on time
+    # This automatically resets every window period
+    let now = epochTime()
+    let windowId = floor(now / windowSeconds.float).int
+    let cacheKey = "ratelimit:" & ip & ":" & $windowId
+    
+    # Increment and check limit
+    # We use cache.increment for thread-safety (race conditions)
+    let current = ctx.cache.increment(cacheKey, ttl = windowSeconds)
+    
+    # Standard Rate-Limit Headers
+    let resetAt = (windowId + 1) * windowSeconds
+    ctx.header("X-RateLimit-Limit", $maxRequests)
+    ctx.header("X-RateLimit-Remaining", $(max(0, maxRequests - current)))
+    ctx.header("X-RateLimit-Reset", $resetAt)
+    
+    if current > maxRequests:
+      let retryAfter = resetAt - now.int
+      ctx.header("Retry-After", $retryAfter)
+      ctx.status(429).json( %* {
+        "error": "Too Many Requests",
+        "retry_after": retryAfter,
+        "reset_at": resetAt
+      })
+      return
+    
+    await next(ctx)
+  
+  return Middleware(name: "RateLimit(" & $maxRequests & "/" & $windowSeconds & "s)", handler: handler)
 
 proc bodyLimit*(maxSizeMb: int = -1): Middleware =
   let limitMb = if maxSizeMb == -1:

@@ -1,4 +1,4 @@
-import std/[tables, times, locks, json]
+import std/[tables, times, locks, json, strutils]
 
 type
   CacheItem = object
@@ -95,3 +95,33 @@ proc prune*(c: JazzyCache) =
       keysToRemove.add(k)
   for k in keysToRemove:
     c.data.del(k)
+
+proc increment*(c: JazzyCache, key: string, ttl: int = 60): int =
+  ## Atomically increment a numeric value in cache.
+  ## If key does not exist, it's initialized to 1 with the given TTL.
+  acquire(c.lock)
+  defer: release(c.lock)
+
+  let now = epochTime()
+  if c.data.hasKey(key):
+    let item = c.data[key]
+    if now < item.expiresAt:
+      try:
+        let val = parseInt(item.value) + 1
+        c.data[key].value = $val
+        return val
+      except ValueError:
+        # Not a number, reset to 1
+        c.data[key] = CacheItem(value: "1", expiresAt: item.expiresAt)
+        return 1
+    else:
+      # Expired, reset
+      let expiry = now + ttl.float
+      c.data[key] = CacheItem(value: "1", expiresAt: expiry)
+      return 1
+  else:
+    # New key
+    let expiry = now + ttl.float
+    c.data[key] = CacheItem(value: "1", expiresAt: expiry)
+    return 1
+
