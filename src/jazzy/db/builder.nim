@@ -47,10 +47,12 @@ proc raw*(db: DatabaseHelper, sql: string, params: varargs[DbValue, dbValue]): J
         rowJson[row.columns[i]] = valToJson(row[i])
       result.add(rowJson)
 
-proc rawExec*(db: DatabaseHelper, sql: string, params: varargs[DbValue, dbValue]) =
+proc rawExec*(db: DatabaseHelper, sql: string, params: varargs[DbValue, dbValue]): int =
   let p = @params # Convert varargs to seq
   withDB:
-    database.getConn().exec(sql, p)
+    let conn = database.getConn()
+    conn.exec(sql, p)
+    return conn.changes()
 
 proc where*(qb: QueryBuilder, col: string, val: string): QueryBuilder =
   qb.wheres.add(sanitizeIdentifier(col) & " = ?")

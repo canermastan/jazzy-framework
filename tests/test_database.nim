@@ -46,10 +46,15 @@ suite "Database and Query Builder":
 
   test "Raw Exec":
     # Direct params without @[dbValue(...)]
-    DB.rawExec("INSERT INTO users (name, age) VALUES (?, ?)", "Charlie", 35)
+    let affected = DB.rawExec("INSERT INTO users (name, age) VALUES (?, ?)", "Charlie", 35)
+    check affected == 1
     
     let charlie = DB.table("users").where("name", "Charlie").first()
     check charlie["age"].getInt() == 35
+
+    # Test update affected
+    let updated = DB.rawExec("UPDATE users SET age = ? WHERE name = ?", 40, "Charlie")
+    check updated == 1
 
   test "Update and Delete":
     discard DB.table("users").insert(%*{"name": "Alice", "age": 25})
