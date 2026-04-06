@@ -4,7 +4,7 @@
 import std/[os, strutils, strformat]
 import jazzy/cli/templates
 
-const VERSION = "0.1.0"
+const VERSION = "0.3.0"
 
 const BANNER = """
      ██╗ █████╗ ███████╗███████╗██╗   ██╗
@@ -58,12 +58,9 @@ proc newProject(name: string) =
   # Source files
   createFile(name / "src" / "app.nim", appTemplate(name))
   createFile(name / "src" / "router.nim", routerTemplate())
-  createFile(name / "src" / "controllers" / "home_controller.nim",
-      homeControllerTemplate())
-
-  # Placeholder directories
-  createFile(name / "src" / "services" / ".gitkeep", "")
-  createFile(name / "src" / "models" / ".gitkeep", "")
+  createFile(name / "src" / "schema.nim", schemaTemplate())
+  createFile(name / "src" / "controllers" / "todo_controller.nim",
+      todoControllerTemplate())
 
   # Tests
   createFile(name / "tests" / "config.nims", testConfigTemplate())

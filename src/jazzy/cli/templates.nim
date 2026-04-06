@@ -6,7 +6,7 @@ proc nimbleTemplate*(projectName: string): string =
   result = fmt"""# Package
 
 version       = "0.1.0"
-author        = ""
+author        = "Jazzy-CLI"
 description   = "A new Jazzy web application"
 license       = "MIT"
 srcDir        = "src"
@@ -14,7 +14,7 @@ srcDir        = "src"
 # Dependencies
 
 requires "nim >= 2.0.0"
-requires "jazzy >= 0.1.0"
+requires "jazzy >= 0.3.0"
 """
 
 proc configNimsTemplate*(): string =
@@ -33,10 +33,12 @@ if dirExists(pkgs2Dir):
 proc appTemplate*(projectName: string): string =
   result = fmt"""import jazzy
 import router
+import schema
 
 proc main() =
   connectDB("{projectName}.db")
 
+  initSchema()
   registerRoutes()
 
   echo "🎷 Jazzy is dancing on http://localhost:8080"
@@ -48,20 +50,70 @@ when isMainModule:
 
 proc routerTemplate*(): string =
   result = """import jazzy
-import controllers/home_controller
+import controllers/todo_controller
 
 proc registerRoutes*() =
-  Route.get("/", home_controller.index)
+  Route.get("/", proc(ctx: Context) {.async.} =
+    ctx.json(%*{"message": "Welcome to Jazzy! 🎷", "api": "/todos"})
+  )
+
+  Route.groupPath("/todos"):
+    Route.get("/", todo_controller.list)
+    Route.post("/", todo_controller.create)
+    Route.patch("/:id", todo_controller.update)
+    Route.delete("/:id", todo_controller.delete)
 """
 
-proc homeControllerTemplate*(): string =
+proc todoControllerTemplate*(): string =
   result = """import jazzy
 
-proc index*(ctx: Context) {.async.} =
-  ctx.json(%*{
-    "message": "Welcome to Jazzy! 🎷",
-    "status": "running"
+# GET /todos
+proc list*(ctx: Context) {.async.} =
+  let todos = DB.table("todos").get()
+  ctx.json(todos)
+
+# POST /todos
+proc create*(ctx: Context) {.async.} =
+  let data = ctx.validate(%*{
+    "title": "required|min:3"
   })
+
+  let id = DB.table("todos").insert(%*{
+    "title": data["title"].getStr,
+    "completed": false
+  })
+
+  ctx.status(201).json(%*{"id": id, "status": "created"})
+
+# PATCH /todos/:id
+proc update*(ctx: Context) {.async.} =
+  let id = ctx.param("id")
+  let data = ctx.validate(%*{
+    "completed": "required|bool"
+  })
+
+  DB.table("todos").where("id", id).update(%*{
+    "completed": data["completed"].getBool
+  })
+
+  ctx.json(%*{"status": "updated"})
+
+# DELETE /todos/:id
+proc delete*(ctx: Context) {.async.} =
+  let id = ctx.param("id")
+  DB.table("todos").where("id", id).delete()
+  ctx.status(204).json(%*{"status": "deleted"})
+"""
+
+proc schemaTemplate*(): string =
+  result = """import jazzy
+
+proc initSchema*() =
+  createTable("todos")
+    .increments("id")
+    .string("title")
+    .boolean("completed", default = false)
+    .execute()
 """
 
 proc gitignoreTemplate*(): string =
@@ -90,116 +142,9 @@ Thumbs.db
 proc envTemplate*(): string =
   result = """# Application Environment (development | production)
 APP_ENV=development
+LOG_LEVEL=debug
 """
 
 proc testConfigTemplate*(): string =
   result = """switch("path", "$projectDir/../src")
-"""
-
-proc authControllerTemplate*(): string =
-  result = """import jazzy
-import ../services/auth_service
-
-proc login*(ctx: Context) {.async.} =
-  let data = ctx.validate(%*{
-    "email": "required|email",
-    "password": "required|min:4"
-  })
-
-  let user = auth_service.login(data["email"].getStr, data["password"].getStr)
-  if user.isSome:
-    let token = ctx.login(user.get)
-    ctx.json(%*{"token": token})
-  else:
-    ctx.status(401).json(%*{"error": "Invalid credentials"})
-
-proc register*(ctx: Context) {.async.} =
-  let data = ctx.validate(%*{
-    "email": "required|email",
-    "password": "required|min:6"
-  })
-
-  discard auth_service.register(data["email"].getStr, data["password"].getStr)
-  ctx.json(%*{"message": "User registered successfully"})
-
-proc me*(ctx: Context) {.async.} =
-  let u = ctx.user
-  if u.isSome:
-    ctx.json(u.get)
-  else:
-    ctx.status(401).json(%*{"error": "Unauthenticated"})
-
-proc logout*(ctx: Context) {.async.} =
-  ctx.logout()
-  ctx.json(%*{"message": "Logged out successfully"})
-"""
-
-proc authServiceTemplate*(): string =
-  result = """import jazzy
-import std/[json, options]
-
-proc login*(email, password: string): Option[JsonNode] =
-  let user = DB.table("users").where("email", email).first()
-  if user.kind != JNull and verifyPassword(password, user["password"].getStr):
-    return some(user)
-  else:
-    return none(JsonNode)
-
-proc register*(email, password: string): int =
-  let hashedPassword = hashPassword(password)
-  return DB.table("users").insert(%*{
-    "email": email,
-    "password": hashedPassword
-  })
-"""
-
-proc schemaTemplate*(withAuth: bool): string =
-  if withAuth:
-    result = """import jazzy
-
-proc initSchema*() =
-  createTable("users")
-    .increments("id")
-    .string("email")
-    .string("password")
-    .execute()
-"""
-  else:
-    result = ""
-
-proc routerWithAuthTemplate*(): string =
-  result = """import jazzy
-import controllers/home_controller
-import controllers/auth_controller
-
-proc registerRoutes*() =
-  # Public routes
-  Route.get("/", home_controller.index)
-
-  # Auth routes
-  Route.post("/auth/login", auth_controller.login)
-  Route.post("/auth/register", auth_controller.register)
-
-  # Protected routes (requires JWT token)
-  Route.groupPath("/auth", guard):
-    Route.get("/me", auth_controller.me)
-    Route.post("/logout", auth_controller.logout)
-"""
-
-proc appWithSchemaTemplate*(projectName: string): string =
-  result = fmt"""import jazzy
-import router
-import schema
-
-proc main() =
-  connectDB("{projectName}.db")
-
-  initSchema()
-  registerRoutes()
-
-  echo "🎷 Jazzy is dancing on http://localhost:8080"
-  Jazzy.serve(8080)
-
-when isMainModule:
-  main()
 """
