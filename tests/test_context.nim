@@ -61,5 +61,27 @@ suite "Context Logic Tests":
     check ctx.request.ip == "127.0.0.1"
     check ctx.ip() == "127.0.0.1"
 
+  test "Request ID should be generated and unique":
+    let req1 = JazzyRequest()
+    let ctx1 = newContext(req1)
+
+    let req2 = JazzyRequest()
+    let ctx2 = newContext(req2)
+
+    # Format Check (8-4-4-4-12 hex format)
+    # Example: 12345678-1234-1234-1234-123456789012
+    let rid = ctx1.requestId
+    check rid.len == 36
+    check rid[8] == '-'
+    check rid[13] == '-'
+    check rid[18] == '-'
+    check rid[23] == '-'
+
+    # Uniqueness Check
+    check ctx1.requestId != ctx2.requestId
+
+    # Header check
+    check ctx1.response.headers["X-Request-Id"] == ctx1.requestId
+
 
 
