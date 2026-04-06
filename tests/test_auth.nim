@@ -155,7 +155,7 @@ suite "Auth System Tests":
     let basicCtx = newContext(basicReq)
 
     proc testNext(ctx: Context) {.async.} = discard
-    waitFor basicAuthGuard(basicCtx, testNext)
+    waitFor basicAuthGuard.handler(basicCtx, testNext)
 
     check basicCtx.check() == true
     check basicCtx.user.isSome()
@@ -174,7 +174,7 @@ suite "Auth System Tests":
     let basicCtx = newContext(basicReq)
 
     proc testNext(ctx: Context) {.async.} = discard
-    waitFor basicAuthGuard(basicCtx, testNext)
+    waitFor basicAuthGuard.handler(basicCtx, testNext)
 
     check basicCtx.check() == false
 
@@ -189,7 +189,7 @@ suite "Auth System Tests":
     let basicCtx = newContext(basicReq)
 
     proc testNext(ctx: Context) {.async.} = discard
-    waitFor basicAuthGuard(basicCtx, testNext)
+    waitFor basicAuthGuard.handler(basicCtx, testNext)
 
     check basicCtx.check() == false
 
@@ -204,7 +204,7 @@ suite "Auth System Tests":
     let basicCtx = newContext(basicReq)
 
     proc testNext(ctx: Context) {.async.} = discard
-    waitFor basicAuthGuard(basicCtx, testNext)
+    waitFor basicAuthGuard.handler(basicCtx, testNext)
 
     check basicCtx.check() == false
     check basicCtx.response.code == 401
@@ -217,7 +217,7 @@ suite "Auth System Tests":
     let basicCtx = newContext(basicReq)
 
     proc testNext(ctx: Context) {.async.} = discard
-    waitFor basicAuthGuard(basicCtx, testNext)
+    waitFor basicAuthGuard.handler(basicCtx, testNext)
 
     check basicCtx.response.code == 401
     check basicCtx.response.headers.hasKey("WWW-Authenticate")
@@ -236,7 +236,7 @@ suite "Auth System Tests":
     let basicCtx = newContext(basicReq)
 
     proc testNext(ctx: Context) {.async.} = discard
-    waitFor basicAuthGuard(basicCtx, testNext)
+    waitFor basicAuthGuard.handler(basicCtx, testNext)
 
     check basicCtx.check() == false
     check basicCtx.response.code == 401
@@ -254,7 +254,7 @@ suite "Auth System Tests":
     let basicCtx = newContext(basicReq)
 
     proc testNext(ctx: Context) {.async.} = discard
-    waitFor basicAuthGuard(basicCtx, testNext)
+    waitFor basicAuthGuard.handler(basicCtx, testNext)
 
     check basicCtx.check() == true
     check basicCtx.user.get["username"].getStr == "admin"

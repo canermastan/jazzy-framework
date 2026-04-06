@@ -27,7 +27,7 @@ suite "Static Files Serving Tests":
     # Mock next proc
     let next: HandlerProc = proc(c: Context) {.async.} = discard
 
-    waitFor middleware(ctx, next)
+    waitFor middleware.handler(ctx, next)
 
     check ctx.response.code == 200
     check ctx.response.body == "Hello Static!"
@@ -44,7 +44,7 @@ suite "Static Files Serving Tests":
     let ctx = newContext(req)
     let next: HandlerProc = proc(c: Context) {.async.} = discard
 
-    waitFor middleware(ctx, next)
+    waitFor middleware.handler(ctx, next)
     check ctx.response.headers["Content-Type"] == "text/html"
 
   test "Should call next() if path does not match prefix":
@@ -60,7 +60,7 @@ suite "Static Files Serving Tests":
     let next: HandlerProc = proc(c: Context) {.async.} =
       nextCalled = true
 
-    waitFor middleware(ctx, next)
+    waitFor middleware.handler(ctx, next)
     check nextCalled == true
 
   test "Should call next() if file does not exist":
@@ -76,7 +76,7 @@ suite "Static Files Serving Tests":
     let next: HandlerProc = proc(c: Context) {.async.} =
       nextCalled = true
 
-    waitFor middleware(ctx, next)
+    waitFor middleware.handler(ctx, next)
     check nextCalled == true
 
   test "Should prevent directory traversal":
@@ -89,7 +89,7 @@ suite "Static Files Serving Tests":
     let ctx = newContext(req)
     let next: HandlerProc = proc(c: Context) {.async.} = discard
 
-    waitFor middleware(ctx, next)
+    waitFor middleware.handler(ctx, next)
     check ctx.response.code == 403
 
   test "Should serve index.html when requesting directory":
@@ -102,6 +102,6 @@ suite "Static Files Serving Tests":
     let ctx = newContext(req)
     let next: HandlerProc = proc(c: Context) {.async.} = discard
 
-    waitFor middleware(ctx, next)
+    waitFor middleware.handler(ctx, next)
     check ctx.response.code == 200
     check ctx.response.headers["Content-Type"] == "text/html"

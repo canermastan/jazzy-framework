@@ -17,7 +17,7 @@ suite "Body Limit Middleware Tests":
     let next: HandlerProc = proc(c: Context): Future[void] {.async, gcsafe.} =
       nextCalled = true
 
-    waitFor limitMw(ctx, next)
+    waitFor limitMw.handler(ctx, next)
     check nextCalled == true
     check ctx.response.code == 200
 
@@ -38,7 +38,7 @@ suite "Body Limit Middleware Tests":
     let next: HandlerProc = proc(c: Context): Future[void] {.async, gcsafe.} =
       nextCalled = true
 
-    waitFor limitMw(ctx, next)
+    waitFor limitMw.handler(ctx, next)
 
     check nextCalled == false
     check ctx.response.code == 413
@@ -59,6 +59,6 @@ suite "Body Limit Middleware Tests":
     let next: HandlerProc = proc(c: Context): Future[void] {.async, gcsafe.} =
       nextCalled = true
 
-    waitFor limitMw(ctx, next)
+    waitFor limitMw.handler(ctx, next)
     check nextCalled == true
 
