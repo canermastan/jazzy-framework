@@ -1,5 +1,13 @@
 import tiny_sqlite
+export tiny_sqlite
 import std/locks
+
+proc dbValue*(v: int64): DbValue = DbValue(kind: sqliteInteger, intVal: v)
+proc dbValue*(v: int): DbValue = DbValue(kind: sqliteInteger, intVal: v.int64)
+proc dbValue*(v: string): DbValue = DbValue(kind: sqliteText, strVal: v)
+proc dbValue*(v: float): DbValue = DbValue(kind: sqliteReal, floatVal: v)
+proc dbValue*(v: bool): DbValue = DbValue(kind: sqliteInteger, intVal: (if v: 1.int64 else: 0.int64))
+proc dbNull*(): DbValue = DbValue(kind: sqliteNull)
 
 var dbConn*: DbConn
 var dbLock*: Lock

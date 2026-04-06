@@ -19,10 +19,15 @@ type
 
   DatabaseHelper* = object
 
-var DB*: DatabaseHelper
+proc valToJson*(val: DbValue): JsonNode =
+  case val.kind
+  of sqliteInteger: return %val.intVal
+  of sqliteReal: return %val.floatVal
+  of sqliteText: return %val.strVal
+  of sqliteBlob: return %"<blob>"
+  of sqliteNull: return newJNull()
 
-proc makeDbValue(v: string): DbValue = DbValue(kind: sqliteText, strVal: v)
-proc makeDbValue(v: int): DbValue = DbValue(kind: sqliteInteger, intVal: v)
+var DB*: DatabaseHelper
 
 # Builder Methods
 proc table*(db: DatabaseHelper, name: string): QueryBuilder =
@@ -32,33 +37,40 @@ proc table*(db: DatabaseHelper, name: string): QueryBuilder =
   result.params = @[]
   result.limit = -1
 
+proc raw*(db: DatabaseHelper, sql: string, params: varargs[DbValue, dbValue]): JsonNode =
+  result = newJArray()
+  let p = @params # Convert varargs to seq
+  withDB:
+    for row in database.getConn().iterate(sql, p):
+      var rowJson = newJObject()
+      for i in 0 ..< row.len:
+        rowJson[row.columns[i]] = valToJson(row[i])
+      result.add(rowJson)
+
+proc rawExec*(db: DatabaseHelper, sql: string, params: varargs[DbValue, dbValue]) =
+  let p = @params # Convert varargs to seq
+  withDB:
+    database.getConn().exec(sql, p)
+
 proc where*(qb: QueryBuilder, col: string, val: string): QueryBuilder =
   qb.wheres.add(sanitizeIdentifier(col) & " = ?")
-  qb.params.add(makeDbValue(val))
+  qb.params.add(dbValue(val))
   return qb
 
 proc where*(qb: QueryBuilder, col: string, val: int): QueryBuilder =
   qb.wheres.add(sanitizeIdentifier(col) & " = ?")
-  qb.params.add(makeDbValue(val))
+  qb.params.add(dbValue(val))
   return qb
 
 proc where*(qb: QueryBuilder, col: string, op: string,
     val: string): QueryBuilder =
   qb.wheres.add(sanitizeIdentifier(col) & " " & op & " ?")
-  qb.params.add(makeDbValue(val))
+  qb.params.add(dbValue(val))
   return qb
 
 proc limit*(qb: QueryBuilder, n: int): QueryBuilder =
   qb.limit = n
   return qb
-
-proc valToJson*(val: DbValue): JsonNode =
-  case val.kind
-  of sqliteInteger: return %val.intVal
-  of sqliteReal: return %val.floatVal
-  of sqliteText: return %val.strVal
-  of sqliteBlob: return %"<blob>"
-  of sqliteNull: return newJNull()
 
 proc getColumns*(tableName: string): seq[string] =
   result = @[]
@@ -121,10 +133,10 @@ proc insert*(qb: QueryBuilder, data: JsonNode): int64 =
     cols.add(sanitizeIdentifier(k))
     placeholders.add("?")
     case v.kind
-    of JInt: vals.add(makeDbValue(v.getInt))
-    of JString: vals.add(makeDbValue(v.getStr))
-    of JBool: vals.add(makeDbValue(if v.getBool: 1 else: 0))
-    else: vals.add(makeDbValue($v))
+    of JInt: vals.add(dbValue(v.getInt))
+    of JString: vals.add(dbValue(v.getStr))
+    of JBool: vals.add(dbValue(if v.getBool: 1 else: 0))
+    else: vals.add(dbValue($v))
 
   let sqlStr = "INSERT INTO " & qb.tableName & " (" & cols.join(", ") &
       ") VALUES (" & placeholders.join(", ") & ")"
@@ -141,10 +153,10 @@ proc update*(qb: QueryBuilder, data: JsonNode) =
   for k, v in data:
     sets.add(sanitizeIdentifier(k) & " = ?")
     case v.kind
-    of JInt: vals.add(makeDbValue(v.getInt))
-    of JString: vals.add(makeDbValue(v.getStr))
-    of JBool: vals.add(makeDbValue(if v.getBool: 1 else: 0))
-    else: vals.add(makeDbValue($v))
+    of JInt: vals.add(dbValue(v.getInt))
+    of JString: vals.add(dbValue(v.getStr))
+    of JBool: vals.add(dbValue(if v.getBool: 1 else: 0))
+    else: vals.add(dbValue($v))
 
   vals.add(qb.params)
 
