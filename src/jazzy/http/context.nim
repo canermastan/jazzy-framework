@@ -1,4 +1,4 @@
-import std/[json, httpcore, tables, strutils, options, net]
+import std/[json, httpcore, tables, strutils, options, net, sysrand]
 import types, validation
 import ../core/[cache, config]
 import ../utils/[json_helpers, ip]
@@ -8,12 +8,24 @@ import ../auth/jwt_manager
 
 export types
 
+proc generateRequestId(): string =
+  ## Generates a UUID-like request identifier using cryptographic randomness
+  var bytes: array[16, byte]
+  discard urandom(bytes)
+  for b in bytes:
+    result.add(toHex(int(b), 2))
+  result = result.toLowerAscii()
+  result = result[0..7] & "-" & result[8..11] & "-" &
+           result[12..15] & "-" & result[16..19] & "-" & result[20..31]
+
 proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
   new(result)
   result.request = req
   result.response = newJazzyResponse()
+  result.requestId = generateRequestId()
   # Default headers
   result.response.headers["Content-Type"] = "text/html"
+  result.response.headers["X-Request-Id"] = result.requestId
 
   {.cast(gcsafe).}:
     result.cache = AppCache

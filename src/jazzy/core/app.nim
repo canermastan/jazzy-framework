@@ -1,6 +1,6 @@
-import std/[asyncdispatch, strutils]
+import std/[asyncdispatch, strutils, times]
 import ../http/[types, context, router, static_files]
-import server, config
+import server, config, logger
 import ../drivers/mummy_driver
 import ../devui/devui
 
@@ -38,10 +38,41 @@ proc serve*(app: JazzyStatic, port: int, address: string = "0.0.0.0") =
     mainHandler = proc(ctx: Context): Future[void] {.async, gcsafe.} =
       await mw.handler(ctx, next)
 
+  # Wrap with request logger (outermost — catches panics, measures total time)
+  let appHandler = mainHandler
+  mainHandler = proc(ctx: Context): Future[void] {.async, gcsafe.} =
+    let start = epochTime()
+    try:
+      await appHandler(ctx)
+    except Exception as e:
+      if ctx.response.code < 500:
+        ctx.status(500)
+      {.cast(gcsafe).}:
+        let reqId = ctx.requestId[0..7]
+        Log.error("Unhandled " & $e.name & ": " & e.msg & " [" & reqId & "]")
+        when not defined(release):
+          let trace = e.getStackTrace()
+          if trace.len > 0:
+            for line in trace.strip().splitLines():
+              Log.debug("    " & line.strip())
+
+    # Log request — early-out if logging disabled
+    {.cast(gcsafe).}:
+      if getMinLevel() != LogLevel.None:
+        let duration = (epochTime() - start) * 1000
+        let code = ctx.response.code
+        let level = if code >= 500: LogLevel.Error
+                    elif code >= 400: LogLevel.Warn
+                    else: LogLevel.Info
+        let durationStr = formatFloat(duration, ffDecimal, 1) & "ms"
+        Log.log(level, "← " & $ctx.request.httpMethod & " " &
+                ctx.request.path & " " & $code & " " & durationStr &
+                " [" & ctx.requestId[0..7] & "]")
+
   # Startup log
   let baseUrl = "http://" & address & ":" & $port
-  echo "🎷 Jazzy running in " & env & " mode on " & baseUrl
+  Log.info("🎷 Jazzy running in " & env & " mode on " & baseUrl)
   if isDevelopment():
-    echo "🔧 Dev UI available at " & baseUrl & "/dev-ui"
+    Log.info("🔧 Dev UI available at " & baseUrl & "/dev-ui")
 
   waitFor app.driver.serve(port, address, mainHandler)

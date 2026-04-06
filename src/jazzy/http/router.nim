@@ -1,6 +1,6 @@
 import std/[asyncdispatch, httpcore, strutils, tables, sequtils, json]
 import types, context
-import ../core/server
+import ../core/[server, logger]
 
 export types
 
@@ -39,7 +39,6 @@ proc splitPath(path: string): seq[string] =
 
 proc addRoute(router: RouterStatic, httpMethod: HttpMethod, path: string,
     handler: HandlerProc) =
-  # Compose middleware
   var composedHandler = handler
   var mwNames: seq[string] = @[]
   
@@ -50,7 +49,6 @@ proc addRoute(router: RouterStatic, httpMethod: HttpMethod, path: string,
     composedHandler = proc(ctx: Context): Future[void] {.async.} =
       await mw.handler(ctx, next)
 
-  # Handle Prefix
   var fullPath = path
   if router.currentPrefix.len > 0:
     let cleanPath = if path.startsWith("/"): path[1..^1] else: path
@@ -208,10 +206,19 @@ proc dispatch*(ctx: Context) {.async.} =
     except ValidationError as e:
       ctx.status(422).json(%*{"errors": e.errors})
     except Exception as e:
+      let reqId = ctx.requestId[0..7]
       when defined(release):
-        discard e
         ctx.status(500).json(%*{"error": "Internal Server Error"})
+        {.cast(gcsafe).}:
+          Log.error($e.name & ": " & e.msg & " [" & reqId & "]")
       else:
         ctx.status(500).json(%*{"error": e.msg})
+        {.cast(gcsafe).}:
+          Log.error($e.name & " on " & $reqMethod & " " & reqPath & " [" & reqId & "]")
+          Log.error("  → " & e.msg)
+          let trace = e.getStackTrace()
+          if trace.len > 0:
+            for line in trace.strip().splitLines():
+              Log.debug("    " & line.strip())
   else:
     ctx.status(404).text("404 Not Found")

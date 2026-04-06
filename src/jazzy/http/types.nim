@@ -40,6 +40,7 @@ type
     response*: JazzyResponse
     auth*: AuthManager
     cache*: JazzyCache
+    requestId*: string
 
   HandlerProc* = proc(ctx: Context): Future[void] {.gcsafe, closure.}
 

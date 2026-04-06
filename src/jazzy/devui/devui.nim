@@ -1,6 +1,6 @@
 import std/[asyncdispatch, json, tables, strutils, sequtils, times]
 import ../http/[context, types, router]
-import ../core/[config, cache]
+import ../core/[config, cache, logger]
 import ../db/[database, builder]
 import tiny_sqlite
 
@@ -176,7 +176,7 @@ proc serveAlpine*(ctx: Context) {.async.} =
 
 proc registerDevUi*(path: string = "/dev-ui") =
   if isProduction():
-    echo "⚠️  Dev UI is disabled in production mode"
+    Log.warn("Dev UI is disabled in production mode")
     return
 
   Route.get(path, serveDevUi)

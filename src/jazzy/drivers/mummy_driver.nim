@@ -1,7 +1,7 @@
 import std/[asyncdispatch, strutils, httpcore, tables, uri]
 import mummy
 import ../http/[types, context]
-import ../core/server
+import ../core/[server, logger]
 import ../utils/multipart
 
 type
@@ -57,12 +57,17 @@ method serve*(driver: MummyDriver, port: int, address: string,
       req.respond(ctx.response.code, headers, ctx.response.body)
 
     except Exception as e:
+      let reqId = if ctx.requestId.len >= 8: ctx.requestId[0..7] else: "unknown"
       when defined(release):
         discard e
-        echo "Error handling request"
+        Log.error("Request failed [" & reqId & "]")
         req.respond(500, @[], "Internal Server Error")
       else:
-        echo "Error handling request: ", e.msg
+        Log.error($e.name & ": " & e.msg & " [" & reqId & "]")
+        let trace = e.getStackTrace()
+        if trace.len > 0:
+          for line in trace.strip().splitLines():
+            Log.debug("    " & line.strip())
         req.respond(500, @[], "Internal Server Error: " & e.msg)
 
   driver.server = newServer(mummyHandler)
