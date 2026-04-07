@@ -8,7 +8,7 @@ description   = "Productive, developer-friendly web framework for Nim. Write les
 license       = "MIT"
 srcDir        = "src"
 namedBin      = {"jazzy_cli": "jazzy"}.toTable()
-installExt    = @["nim"]
+installExt    = @["nim", "html", "css", "js"]
 
 # Dependencies
 
