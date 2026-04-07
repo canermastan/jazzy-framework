@@ -2,7 +2,7 @@ import std/[os, strutils]
 
 # Package
 
-version       = "0.3.0"
+version       = "0.3.1"
 author        = "canermastan"
 description   = "Productive, developer-friendly web framework for Nim. Write less code, build more features."
 license       = "MIT"
