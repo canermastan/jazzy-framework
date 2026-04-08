@@ -68,6 +68,31 @@ proc boolean*(sb: SchemaBuilder, name: string, nullable = false,
   ))
   return sb
 
+proc timestamp*(sb: SchemaBuilder, name: string, nullable = false,
+    default = ""): SchemaBuilder =
+  var d = default
+  if d.toUpperAscii == "CURRENT_TIMESTAMP":
+    d = "CURRENT_TIMESTAMP"
+  elif d.len > 0:
+    d = "'" & d & "'"
+    
+  sb.columns.add(ColumnDef(
+    name: sanitizeIdentifier(name),
+    dataType: "DATETIME",
+    nullable: nullable,
+    defaultVal: d
+  ))
+  return sb
+
+proc timestamps*(sb: SchemaBuilder): SchemaBuilder =
+  discard sb.timestamp("created_at", default = "CURRENT_TIMESTAMP")
+  discard sb.timestamp("updated_at", default = "CURRENT_TIMESTAMP")
+  return sb
+
+proc softDeletes*(sb: SchemaBuilder): SchemaBuilder =
+  discard sb.timestamp("deleted_at", nullable = true)
+  return sb
+
 proc execute*(sb: SchemaBuilder) =
   var sqlParts: seq[string] = @[]
 
