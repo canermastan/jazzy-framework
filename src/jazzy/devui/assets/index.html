@@ -209,7 +209,6 @@
         </nav>
         <div style="margin-top: auto; padding-top: 1rem; font-size: 0.8rem; color: var(--pico-muted-color);">
             <hr>
-            Status: <span style="color: #2e7d32;">● Connected</span><br>
             Version: v{{JAZZY_VERSION}}
         </div>
     </aside>
@@ -355,10 +354,12 @@
                         <!-- SQL Console -->
                         <article>
                             <header>SQL Console</header>
-                            <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                            <div
+                                style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                                 <small style="color: var(--pico-secondary); margin-right: 0.5rem;">Quick:</small>
                                 <template x-for="table in tables" :key="'q_' + table.name">
-                                    <button class="outline secondary" @click="setSql('SELECT * FROM ' + table.name + ' LIMIT 20')"
+                                    <button class="outline secondary"
+                                        @click="setSql('SELECT * FROM ' + table.name + ' LIMIT 20')"
                                         style="font-size: 0.65rem; padding: 2px 8px;" x-text="table.name"></button>
                                 </template>
                             </div>
@@ -367,7 +368,8 @@
                             <footer style="display: flex; justify-content: space-between; align-items: center;">
                                 <small x-text="queryStatus"
                                     :style="{color: queryStatus.includes('Error') ? '#d32f2f' : '#2e7d32'}"></small>
-                                <button @click="runQuery()" style="font-size: 0.8rem; padding: 5px 20px;">Execute Query</button>
+                                <button @click="runQuery()" style="font-size: 0.8rem; padding: 5px 20px;">Execute
+                                    Query</button>
                             </footer>
                         </article>
 
