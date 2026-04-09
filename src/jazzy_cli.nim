@@ -3,8 +3,9 @@
 
 import std/[os, strutils, strformat]
 import jazzy/cli/templates
+import jazzy/core/version
 
-const VERSION = "0.3.0"
+const VERSION = JAZZY_VERSION
 
 const BANNER = """
      ██╗ █████╗ ███████╗███████╗██╗   ██╗

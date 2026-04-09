@@ -1,6 +1,7 @@
 ## Scaffold templates for `jazzy new <project_name>`
 
 import std/strformat
+import ../core/version
 
 proc nimbleTemplate*(projectName: string): string =
   result = fmt"""# Package
@@ -14,7 +15,7 @@ srcDir        = "src"
 # Dependencies
 
 requires "nim >= 2.0.0"
-requires "jazzy >= 0.3.0"
+requires "jazzy >= {JAZZY_VERSION}"
 """
 
 proc configNimsTemplate*(): string =
