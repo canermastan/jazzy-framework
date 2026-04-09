@@ -1,13 +1,14 @@
 import std/[asyncdispatch, json, tables, strutils, sequtils, times, os]
 import ../http/[context, types, router]
-import ../core/[config, cache, logger]
+import ../core/[config, cache, logger, version]
 import ../db/[database, builder]
 import tiny_sqlite
 
 const baseDir = currentSourcePath().parentDir()
 
 const
-  devUiHtml = staticRead(baseDir / "assets/index.html")
+  devUiHtml = staticRead(baseDir / "assets/index.html").replace(
+      "{{JAZZY_VERSION}}", JAZZY_VERSION)
   picoCss = staticRead(baseDir / "assets/pico.min.css")
   alpineJs = staticRead(baseDir / "assets/alpine.min.js")
 
