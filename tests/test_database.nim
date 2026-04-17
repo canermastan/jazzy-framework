@@ -154,3 +154,31 @@ suite "Database and Query Builder":
     DB.table("tasks").where("title", "Task 1").forceDelete()
     check DB.table("tasks").withTrashed().count() == 1
 
+  test "Schema: String with Length":
+    createTable("length_test")
+      .string("short_str", length = 50)
+      .string("long_str", length = 255)
+      .string("default_str")
+      .execute()
+
+    let info = DB.raw("PRAGMA table_info(length_test)")
+    
+    var foundShort = false
+    var foundLong = false
+    var foundDefault = false
+    
+    for col in info:
+      if col["name"].getStr() == "short_str":
+        check col["type"].getStr() == "TEXT(50)"
+        foundShort = true
+      elif col["name"].getStr() == "long_str":
+        check col["type"].getStr() == "TEXT(255)"
+        foundLong = true
+      elif col["name"].getStr() == "default_str":
+        check col["type"].getStr() == "TEXT"
+        foundDefault = true
+        
+    check foundShort
+    check foundLong
+    check foundDefault
+

@@ -36,12 +36,13 @@ proc increments*(sb: SchemaBuilder, name: string): SchemaBuilder =
   ))
   return sb
 
-proc string*(sb: SchemaBuilder, name: string, nullable = false,
+proc string*(sb: SchemaBuilder, name: string, length = 0, nullable = false,
     default = ""): SchemaBuilder =
   var d = if default.len > 0: "'" & default & "'" else: ""
+  let typeStr = if length > 0: "TEXT(" & $length & ")" else: "TEXT"
   sb.columns.add(ColumnDef(
     name: sanitizeIdentifier(name),
-    dataType: "TEXT",
+    dataType: typeStr,
     nullable: nullable,
     defaultVal: d
   ))
