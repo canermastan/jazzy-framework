@@ -71,8 +71,8 @@ proc newProject(name: string) =
   echo ""
   echo "  Next steps:"
   echo fmt"    cd {name}"
-  echo "    nimble install --depsOnly"
   echo "    nimble c -r src/app.nim"
+
   echo ""
   echo "  🎷 Happy coding with Jazzy!"
   echo ""
