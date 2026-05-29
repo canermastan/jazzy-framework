@@ -27,6 +27,10 @@ proc static*(app: var JazzyStatic, path: string,
     urlPrefix: string = "/public") =
   app.serveStatic(path, urlPrefix)
 
+proc wrapMiddleware(mw: Middleware, next: HandlerProc): HandlerProc =
+  return proc(ctx: Context): Future[void] {.async, gcsafe.} =
+    await mw.handler(ctx, next)
+
 proc serve*(app: JazzyStatic, port: int, address: string = "0.0.0.0") =
   # Always ensure .env is loaded if present in current directory
   loadEnv(silent = true)
@@ -42,9 +46,7 @@ proc serve*(app: JazzyStatic, port: int, address: string = "0.0.0.0") =
 
   for i in countdown(app.middlewares.len - 1, 0):
     let mw = app.middlewares[i]
-    let next = mainHandler
-    mainHandler = proc(ctx: Context): Future[void] {.async, gcsafe.} =
-      await mw.handler(ctx, next)
+    mainHandler = wrapMiddleware(mw, mainHandler)
 
   # Wrap with request logger (outermost — catches panics, measures total time)
   let appHandler = mainHandler

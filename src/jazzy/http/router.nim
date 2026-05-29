@@ -34,6 +34,10 @@ var Route* = initRouter()
 proc splitPath(path: string): seq[string] =
   path.strip(leading = true, trailing = true, chars = {'/'}).split('/')
 
+proc wrapMiddleware(mw: Middleware, next: HandlerProc): HandlerProc =
+  return proc(ctx: Context): Future[void] {.async, gcsafe.} =
+    await mw.handler(ctx, next)
+
 proc addRoute(router: RouterStatic, httpMethod: HttpMethod, path: string,
     handler: HandlerProc, isWildcard: bool = false) =
   var composedHandler = handler
@@ -41,10 +45,8 @@ proc addRoute(router: RouterStatic, httpMethod: HttpMethod, path: string,
 
   for i in countdown(router.currentStack.len - 1, 0):
     let mw = router.currentStack[i]
-    let next = composedHandler
     mwNames.add(mw.name)
-    composedHandler = proc(ctx: Context): Future[void] {.async.} =
-      await mw.handler(ctx, next)
+    composedHandler = wrapMiddleware(mw, composedHandler)
 
   var fullPath = path
   if router.currentPrefix.len > 0:
@@ -109,6 +111,9 @@ template groupPath*(router: RouterStatic, prefix: string, middlewaresList: seq[
 template groupPath*(router: RouterStatic, prefix: string,
     middlewareItem: Middleware, body: untyped) =
   router.groupPath(prefix, @[middlewareItem], body)
+
+template groupPath*(router: RouterStatic, prefix: string, body: untyped) =
+  router.groupPath(prefix, newSeq[Middleware](), body)
 
 proc staticRoute*(router: RouterStatic, directory: string, urlPath: string,
     middlewares: seq[Middleware] = @[]) =
