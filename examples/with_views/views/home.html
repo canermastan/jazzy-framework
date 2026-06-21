@@ -1,0 +1,57 @@
+@extends("layouts/main")
+
+@section("title")
+  {{ $title }}
+@endsection
+
+@section("content")
+<article>
+  <header>
+    <h1>{{ $title }}</h1>
+    <p>
+      @if(success)
+        We'll be in touch with you shortly.
+      @else
+        Fill out the form below to get in touch with us.
+      @endif
+    </p>
+  </header>
+
+  @if(message)
+    @if(success)
+      <article style="background-color: var(--pico-color-green-100); border-color: var(--pico-color-green-300);">
+        <p class="text-success" style="margin-bottom: 0;"><strong>{{ $message }}</strong></p>
+      </article>
+    @else
+      <article style="background-color: var(--pico-color-red-100); border-color: var(--pico-color-red-300);">
+        <p class="text-error" style="margin-bottom: 0;"><strong>{{ $message }}</strong></p>
+      </article>
+    @endif
+  @endif
+
+  @if(success)
+    <footer>
+      <a href="/" role="button" class="secondary">Send another message</a>
+    </footer>
+  @else
+    <form method="POST" action="/">
+      <label for="name">
+        Name
+        <input type="text" id="name" name="name" value="{{ $old.name }}" placeholder="John Doe">
+      </label>
+
+      <label for="email">
+        Email
+        <input type="email" id="email" name="email" value="{{ $old.email }}" placeholder="m@example.com">
+      </label>
+
+      <label for="inquiry">
+        How can we help?
+        <textarea id="inquiry" name="inquiry" rows="4" placeholder="Tell us about your project...">{!! $old.inquiry !!}</textarea>
+      </label>
+
+      <button type="submit">Send Message</button>
+    </form>
+  @endif
+</article>
+@endsection

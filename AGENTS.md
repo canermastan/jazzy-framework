@@ -61,12 +61,40 @@ Middlewares in Jazzy are **objects** containing a `name` and a `handler`.
 ## ⚡ The Context Object (`ctx`)
 The `ctx` object is the primary interface for handlers:
 
-- **Input**: `ctx.input("name")` (Checks query params then JSON body).
+- **Input**: `ctx.input("name")` (Checks query params, JSON body, then Form x-www-form-urlencoded).
 - **Params**: `ctx.param("id")` (URL parameters).
 - **Validation**: `let data = ctx.validate(%*{"email": "required|email"})` (Throws 422 on failure).
 - **Response**: `ctx.json(node)`, `ctx.text(str)`, `ctx.html(html)`, `ctx.status(404)`.
 - **Auth**: `ctx.login(userNode)`, `ctx.logout()`, `ctx.check()` (bool), `ctx.user()` (Option).
 - **IP**: `ctx.ip()` (Respects `TRUST_PROXY`).
+
+---
+
+## 🎨 Melody Template Engine
+Jazzy includes a blazing-fast, zero-allocation template engine named **Melody** (inspired by Blade).
+
+### Rendering Views
+Views are placed in the `views/` directory.
+```nim
+# Normal render
+ctx.render("home", %*{"title": "Hello", "success": true})
+
+# Cached render (Tier-2 Cache)
+ctx.renderCached("landing", %*{"data": "static"}, ttl=3600)
+```
+
+### Syntax & Features
+- **Variables**: `{{ $var }}` (Escaped) / `{!! $var !!}` (Raw/Unescaped).
+- **Control Flow**: `@if(cond) ... @else ... @endif`
+- **Loops**: `@foreach(items as item) ... @endforeach`
+- **Layouts**: 
+  - Parent (`views/layouts/app.html`): Uses `@yield("content")`
+  - Child (`views/home.html`): Uses `@extends("layouts/app")` and `@section("content") ... @endsection`
+  - Partials: `@include("partials/navbar")`
+
+### Caching
+- **Dev Mode**: Reads from disk on every request (Hot Reload, no restart required).
+- **Prod Mode**: Tier-1 (File mtime-invalidated memory cache) + Tier-2 (Hash-based HTML cache via `renderCached`).
 
 ---
 
