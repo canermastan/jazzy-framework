@@ -12,6 +12,15 @@ All notable changes to this project will be documented in this file.
   - *Tier-2 (Render Cache)*: Extreme-performance HTML caching via `ctx.renderCached("view", data, ttl=3600)`.
 - **Form Data Handling**: `ctx.input()` now natively parses `application/x-www-form-urlencoded` payloads, allowing seamless integration with standard HTML forms.
 - **Full Views Example**: Added `examples/with_views` showcasing a complete app structure with layouts, partials, Pico CSS, and form state restoration using the `$old` paradigm.
+- **Database Enhancements**: Implemented pagination, automatic timestamps (`created_at`, `updated_at`), and soft deletes functionality.
+- **Schema Builder**: Added an optional length parameter to the `SchemaBuilder.string` method.
+- **Routing API**: Added a zero-middleware `groupPath` template and fixed loop-variable closure capture issues during middleware registration.
+- **Version Helper**: Added a version display helper for consistent Jazzy version display.
+
+### 🛠 Fixed & Changed (from 0.3.1 & 0.3.2)
+- **Fix**: Resolved the `jazzy.nimble` path resolution issue in installed packages.
+- **Chore**: Removed hardcoded status label from the Dev UI.
+- **Chore**: Added `config.nims` for path and compiler settings.
 
 
 ## [0.3.0] - 2026-04-07
