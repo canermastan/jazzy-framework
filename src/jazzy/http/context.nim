@@ -1,8 +1,10 @@
-import std/[json, httpcore, tables, strutils, options, net, sysrand]
+import std/[json, httpcore, tables, strutils, options, net, sysrand, os, uri]
 import types, validation
 import ../core/[cache, config]
 import ../utils/[json_helpers, ip]
 import ../auth/jwt_manager
+import ../views/engine
+import ../views/cache as viewcache
 
 # const AuthSecret = "CHANGE_ME_IN_PROD_SECRET_KEY"
 
@@ -84,26 +86,100 @@ proc html*(ctx: Context, content: string) =
   ctx.header("Content-Type", "text/html")
   ctx.response.body = content
 
+proc render*(ctx: Context, viewName: string, data: JsonNode = newJObject()) =
+  ## Renders a view template using Tier-1 (file) cache.
+  ## Supports @extends, @include, @yield, and @section via the views/ directory.
+  ## - Development: always reads from disk, no caching.
+  ## - Production:  reads from file cache; invalidates automatically on mtime change.
+  let viewsDir  = getCurrentDir() / "views"
+  let viewPath  = viewsDir / (viewName & ".html")
+
+  var content: string
+  var ok: bool
+  {.cast(gcsafe).}:
+    (content, ok) = ViewCache.loadTemplate(viewPath)
+  if not ok:
+    ctx.status(500).text("View not found: " & viewPath)
+    return
+
+  try:
+    let output = engine.renderString(content, data, viewsDir)
+    ctx.html(output)
+  except ViewError as e:
+    ctx.status(500).text("View template error: " & e.msg)
+  except Exception as e:
+    ctx.status(500).text("View render error: " & e.msg)
+
+proc renderCached*(ctx: Context, viewName: string,
+                   data: JsonNode = newJObject(), ttl: int = 0) =
+  ## Renders a view using BOTH Tier-1 (file) and Tier-2 (output) cache.
+  ## Supports @extends, @include, @yield, and @section.
+  ##
+  ## Tier-2 key = hash(viewPath + $data). Use only for templates whose data
+  ## rarely changes (landing pages, navigation, footers). Not for user-specific pages.
+  ## ttl=0 caches indefinitely until server restart or an explicit clearAll() call.
+  let viewsDir  = getCurrentDir() / "views"
+  let viewPath  = viewsDir / (viewName & ".html")
+  let dataRepr  = $data
+
+  var cached: string
+  var hit: bool
+  {.cast(gcsafe).}:
+    (cached, hit) = ViewCache.getCachedRender(viewPath, dataRepr)
+  if hit:
+    ctx.html(cached)
+    return
+
+  var content: string
+  var ok: bool
+  {.cast(gcsafe).}:
+    (content, ok) = ViewCache.loadTemplate(viewPath)
+  if not ok:
+    ctx.status(500).text("View not found: " & viewPath)
+    return
+
+  try:
+    let output = engine.renderString(content, data, viewsDir)
+    {.cast(gcsafe).}:
+      ViewCache.putCachedRender(viewPath, dataRepr, output, ttl)
+    ctx.html(output)
+  except ViewError as e:
+    ctx.status(500).text("View template error: " & e.msg)
+  except Exception as e:
+    ctx.status(500).text("View render error: " & e.msg)
+
 proc input*(ctx: Context, key: string, default = ""): string =
   # Priority:
   # 1. Query Parameters
   # 2. JSON Body (if application/json)
+  # 3. Form Body (if application/x-www-form-urlencoded)
 
   # 1. Check Query Params
   if ctx.request.queryParams.hasKey(key):
     return ctx.request.queryParams[key]
 
+  let ct = ctx.request.headers.getOrDefault("Content-Type")
+  
   # 2. Check JSON Body
-  try:
-    if ctx.request.headers.hasKey("Content-Type") and
-       ctx.request.headers["Content-Type"].contains("application/json"):
+  if ct.contains("application/json"):
+    try:
       if ctx.request.body.len > 0:
         let jsonBody = parseJson(ctx.request.body)
         if jsonBody.kind == JObject and jsonBody.hasKey(key):
           return jsonBody[key].getStr()
-  except Exception:
-    # JSON parse error, ignore
-    discard
+    except Exception:
+      discard
+
+  # 3. Check Form Body (URL Encoded)
+  elif ct.contains("application/x-www-form-urlencoded"):
+    if ctx.request.body.len > 0:
+      for pair in ctx.request.body.split('&'):
+        let kv = pair.split('=', 1)
+        if kv.len == 2:
+          let decodedKey = decodeUrl(kv[0])
+          if decodedKey == key:
+            # decodeUrl correctly decodes %20 to space, but often forms use '+' for space.
+            return decodeUrl(kv[1].replace("+", " "))
 
   return default
 

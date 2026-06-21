@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>@yield("title") - Jazzy App</title>
+
+  <!-- Local Pico CSS -->
+  <link rel="stylesheet" href="/assets/css/pico.min.css">
+
+  <style>
+    :root {
+      --pico-font-size: 15px;
+      --pico-spacing: 0.75rem;
+      --pico-form-element-spacing-vertical: 0.5rem;
+      --pico-form-element-spacing-horizontal: 0.75rem;
+    }
+
+    /* A little spacing to keep the footer at the bottom */
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    main {
+      flex: 1;
+    }
+
+    .text-success {
+      color: var(--pico-color-green-500);
+    }
+
+    .text-error {
+      color: var(--pico-color-red-500);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Navbar Partial -->
+  @include("partials/navbar")
+
+  <!-- Main Content Area -->
+  <main class="container">
+    @yield("content")
+  </main>
+
+  <!-- Footer Partial -->
+  @include("partials/footer")
+
+</body>
+
+</html>
