@@ -48,6 +48,27 @@ suite "Auth System Tests":
     check ctx2.user.isSome()
     check ctx2.id == 99
 
+  test "Cookie header should authenticate user":
+    let user = %*{"id": 100, "role": "editor"}
+    let tempCtx = newContext(JazzyRequest(headers: newHttpHeaders()))
+    let token = tempCtx.login(user)
+
+    # Check if Set-Cookie was added upon login
+    let setCookieHeader = tempCtx.response.headers.getOrDefault("Set-Cookie")
+    let cookieStr = $setCookieHeader
+    check cookieStr.contains("auth_token=")
+    check cookieStr.contains(token)
+    check cookieStr.contains("HttpOnly")
+
+    # Create new request mimicking browser sending cookie
+    let req2 = JazzyRequest(headers: newHttpHeaders())
+    req2.headers["Cookie"] = "auth_token=" & token
+    let ctx2 = newContext(req2)
+
+    check ctx2.check() == true
+    check ctx2.user.isSome()
+    check ctx2.id == 100
+
   test "Invalid token should not authenticate":
     let req2 = JazzyRequest(headers: newHttpHeaders())
     req2.headers["Authorization"] = "Bearer invalid.token.value"

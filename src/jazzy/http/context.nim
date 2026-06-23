@@ -1,4 +1,5 @@
-import std/[json, httpcore, tables, strutils, options, net, sysrand, os, uri]
+import std/[json, httpcore, tables, strutils, options, net, sysrand, os, uri,
+    cookies, strtabs]
 import types, validation
 import ../core/[cache, config]
 import ../utils/[json_helpers, ip]
@@ -20,6 +21,25 @@ proc generateRequestId(): string =
   result = result[0..7] & "-" & result[8..11] & "-" &
            result[12..15] & "-" & result[16..19] & "-" & result[20..31]
 
+proc setCookie*(ctx: Context, name, value: string, maxAge: Option[int] = none(int),
+                domain = "", path = "", secure = false, httpOnly = false,
+                sameSite = SameSite.Default) =
+  var cookieStr = cookies.setCookie(name, value, domain, path, "", false,
+      secure, httpOnly, maxAge, sameSite)
+  if cookieStr.startsWith("Set-Cookie: "):
+    cookieStr = cookieStr[12..^1]
+  ctx.response.headers.add("Set-Cookie", cookieStr)
+
+proc getCookie*(ctx: Context, name: string): string =
+  if ctx.request.headers.isNil:
+    return ""
+  let cookieHeader = ctx.request.headers.getOrDefault("Cookie")
+  if cookieHeader.len > 0:
+    let parsedCookies = parseCookies(cookieHeader)
+    if parsedCookies.hasKey(name):
+      return parsedCookies[name]
+  return ""
+
 proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
   new(result)
   result.request = req
@@ -38,16 +58,25 @@ proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
   let authSecret = getConfig("JWT_SECRET", "CHANGE_ME_IN_PROD_SECRET_KEY")
 
   # Check for Bearer token (JWT)
+  var authToken = ""
   if not req.headers.isNil and req.headers.hasKey("Authorization"):
     let authHeader = req.headers["Authorization"]
     if authHeader.startsWith("Bearer "):
-      let token = authHeader[7..^1]
-      let jwtParams = newJwtManager(authSecret)
-      let payload = jwtParams.verify(token)
-      if payload.isSome:
-        result.auth.isLoggedIn = true
-        result.auth.user = payload
-        result.auth.token = token
+      authToken = authHeader[7..^1]
+  elif not req.headers.isNil and req.headers.hasKey("Cookie"):
+    let cookieHeader = req.headers["Cookie"]
+    if cookieHeader.len > 0:
+      let parsedCookies = parseCookies(cookieHeader)
+      if parsedCookies.hasKey("auth_token"):
+        authToken = parsedCookies["auth_token"]
+
+  if authToken.len > 0:
+    let jwtParams = newJwtManager(authSecret)
+    let payload = jwtParams.verify(authToken)
+    if payload.isSome:
+      result.auth.isLoggedIn = true
+      result.auth.user = payload
+      result.auth.token = authToken
 
   let ctx = result
 
@@ -58,6 +87,8 @@ proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
     ctx.auth.isLoggedIn = true
     ctx.auth.user = some(user)
     ctx.auth.token = token
+    ctx.setCookie("auth_token", token, path = "/", httpOnly = true,
+        secure = isProduction(), sameSite = SameSite.Lax)
     return token
 
   # Setup Logout Proc
@@ -65,6 +96,8 @@ proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
     ctx.auth.isLoggedIn = false
     ctx.auth.user = none(JsonNode)
     ctx.auth.token = ""
+    ctx.setCookie("auth_token", "", path = "/", httpOnly = true,
+        secure = isProduction(), sameSite = SameSite.Lax, maxAge = some(0))
 
 proc status*(ctx: Context, code: int): Context {.discardable.} =
   ctx.response.code = code
@@ -91,8 +124,12 @@ proc render*(ctx: Context, viewName: string, data: JsonNode = newJObject()) =
   ## Supports @extends, @include, @yield, and @section via the views/ directory.
   ## - Development: always reads from disk, no caching.
   ## - Production:  reads from file cache; invalidates automatically on mtime change.
-  let viewsDir  = getCurrentDir() / "views"
-  let viewPath  = viewsDir / (viewName & ".html")
+  let viewsDir = getCurrentDir() / "views"
+  let viewPath = viewsDir / (viewName & ".html")
+
+  # Inject global $user variable into the template context
+  if ctx.auth.isLoggedIn and ctx.auth.user.isSome and not data.hasKey("user"):
+    data["user"] = ctx.auth.user.get
 
   var content: string
   var ok: bool
@@ -118,9 +155,14 @@ proc renderCached*(ctx: Context, viewName: string,
   ## Tier-2 key = hash(viewPath + $data). Use only for templates whose data
   ## rarely changes (landing pages, navigation, footers). Not for user-specific pages.
   ## ttl=0 caches indefinitely until server restart or an explicit clearAll() call.
-  let viewsDir  = getCurrentDir() / "views"
-  let viewPath  = viewsDir / (viewName & ".html")
-  let dataRepr  = $data
+  let viewsDir = getCurrentDir() / "views"
+  let viewPath = viewsDir / (viewName & ".html")
+
+  # Inject global $user variable into the template context
+  if ctx.auth.isLoggedIn and ctx.auth.user.isSome and not data.hasKey("user"):
+    data["user"] = ctx.auth.user.get
+
+  let dataRepr = $data
 
   var cached: string
   var hit: bool
@@ -159,7 +201,7 @@ proc input*(ctx: Context, key: string, default = ""): string =
     return ctx.request.queryParams[key]
 
   let ct = ctx.request.headers.getOrDefault("Content-Type")
-  
+
   # 2. Check JSON Body
   if ct.contains("application/json"):
     try:
