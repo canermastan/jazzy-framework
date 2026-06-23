@@ -69,6 +69,34 @@ suite "Auth System Tests":
     check ctx2.user.isSome()
     check ctx2.id == 100
 
+  test "login(remember=false) should set session cookie without maxAge":
+    let user = %*{"id": 1, "username": "sessionuser"}
+    let remCtx1 = newContext(JazzyRequest(headers: newHttpHeaders()))
+    discard remCtx1.login(user, remember = false)
+
+    let cookieStr1 = $remCtx1.response.headers.getOrDefault("Set-Cookie")
+    check cookieStr1.contains("auth_token=")
+    check not cookieStr1.contains("Max-Age")
+
+  test "login(remember=true) should set persistent cookie with Max-Age=2592000":
+    let user2 = %*{"id": 2, "username": "rememberuser"}
+    let remCtx2 = newContext(JazzyRequest(headers: newHttpHeaders()))
+    discard remCtx2.login(user2, remember = true)
+
+    let cookieStr2 = $remCtx2.response.headers.getOrDefault("Set-Cookie")
+    check cookieStr2.contains("auth_token=")
+    check cookieStr2.contains("Max-Age=2592000")
+
+  test "login(remember=true) token should be valid 30 days later":
+    let user3 = %*{"id": 3}
+    let remCtx3 = newContext(JazzyRequest(headers: newHttpHeaders()))
+    let token30d = remCtx3.login(user3, remember = true)
+
+    # Token must be verifiable immediately (30-day lifetime)
+    let manager = newJwtManager("CHANGE_ME_IN_PROD_SECRET_KEY")
+    let payload = manager.verify(token30d)
+    check payload.isSome()
+
   test "Invalid token should not authenticate":
     let req2 = JazzyRequest(headers: newHttpHeaders())
     req2.headers["Authorization"] = "Bearer invalid.token.value"

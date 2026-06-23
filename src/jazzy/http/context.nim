@@ -81,14 +81,20 @@ proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
   let ctx = result
 
   # Setup Login Proc
-  result.auth.loginProc = proc(user: JsonNode): string =
+  # remember=false → 1h JWT, session cookie (cleared on browser close)
+  # remember=true  → 30-day JWT, persistent cookie (survives browser restarts)
+  result.auth.loginProc = proc(user: JsonNode, remember: bool): string =
     let col = newJwtManager(authSecret)
-    let token = col.sign(user)
+    const sessionLifetime = 3600          # 1 hour
+    const persistentLifetime = 2592000    # 30 days
+    let lifetime = if remember: persistentLifetime else: sessionLifetime
+    let token = col.sign(user, lifetime)
     ctx.auth.isLoggedIn = true
     ctx.auth.user = some(user)
     ctx.auth.token = token
+    let cookieMaxAge = if remember: some(lifetime) else: none(int)
     ctx.setCookie("auth_token", token, path = "/", httpOnly = true,
-        secure = isProduction(), sameSite = SameSite.Lax)
+        secure = isProduction(), sameSite = SameSite.Lax, maxAge = cookieMaxAge)
     return token
 
   # Setup Logout Proc
@@ -239,8 +245,11 @@ proc bodyAs*[T](ctx: Context, target: typedesc[T]): T =
   return jsonNode.toLenient(T)
 
 # Auth Helpers
-proc login*(ctx: Context, user: JsonNode): string =
-  ctx.auth.loginProc(user)
+proc login*(ctx: Context, user: JsonNode, remember: bool = false): string =
+  ## Issues a JWT token and sets an `auth_token` cookie.
+  ## - remember=false (default): 1-hour JWT + session cookie (cleared on browser close).
+  ## - remember=true: 30-day JWT + persistent cookie (survives browser restarts).
+  ctx.auth.loginProc(user, remember)
 
 proc logout*(ctx: Context) =
   ctx.auth.logoutProc()
