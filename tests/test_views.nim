@@ -1,5 +1,6 @@
-import std/[unittest, json]
+import std/[unittest, json, os, httpcore]
 import jazzy/views/engine
+import jazzy/http/[types, context]
 
 suite "JazzyViews Engine":
 
@@ -101,3 +102,26 @@ suite "JazzyViews Engine":
     # Unclosed @if — emit literally
     let t2 = "@if(ok)no end"
     check renderString(t2, data) == "@if(ok)no end"
+
+  test "Global $user injection in ctx.render":
+    let viewsDir = getCurrentDir() / "views"
+    createDir(viewsDir)
+    let viewPath = viewsDir / "test_user_inject.html"
+    writeFile(viewPath, "@if($user)Yes {{ $user.name }}@elseNo@endif")
+
+    # 1. Not logged in
+    let req1 = JazzyRequest(headers: newHttpHeaders())
+    let ctx1 = newContext(req1)
+    ctx1.render("test_user_inject")
+    check ctx1.response.body == "No"
+
+    # 2. Logged in
+    let req2 = JazzyRequest(headers: newHttpHeaders())
+    let ctx2 = newContext(req2)
+    let user = %*{"name": "Admin123"}
+    discard ctx2.login(user)
+    
+    ctx2.render("test_user_inject")
+    check ctx2.response.body == "Yes Admin123"
+
+    removeFile(viewPath)
