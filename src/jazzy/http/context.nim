@@ -85,8 +85,8 @@ proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
   # remember=true  → 30-day JWT, persistent cookie (survives browser restarts)
   result.auth.loginProc = proc(user: JsonNode, remember: bool): string =
     let col = newJwtManager(authSecret)
-    const sessionLifetime = 3600          # 1 hour
-    const persistentLifetime = 2592000    # 30 days
+    const sessionLifetime = 3600 # 1 hour
+    const persistentLifetime = 2592000 # 30 days
     let lifetime = if remember: persistentLifetime else: sessionLifetime
     let token = col.sign(user, lifetime)
     ctx.auth.isLoggedIn = true
@@ -124,6 +124,9 @@ proc text*(ctx: Context, content: string) =
 proc html*(ctx: Context, content: string) =
   ctx.header("Content-Type", "text/html")
   ctx.response.body = content
+
+proc redirect*(ctx: Context, url: string, status: int = 302) =
+  ctx.status(status).header("Location", url).text("Redirecting to " & url)
 
 proc render*(ctx: Context, viewName: string, data: JsonNode = newJObject()) =
   ## Renders a view template using Tier-1 (file) cache.
