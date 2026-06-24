@@ -1,5 +1,9 @@
 import std/[json, strutils]
 
+proc isNull*(node: JsonNode): bool =
+  ## Checks if a JsonNode itself is nil or JNull
+  node.isNil or node.kind == JNull
+
 proc isNull*(node: JsonNode, key: string): bool =
   ## Checks if a key does not exist or its value is JNull
   if node.isNil or node.kind != JObject or not node.hasKey(key):
