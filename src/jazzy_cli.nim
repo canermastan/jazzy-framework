@@ -50,14 +50,16 @@ proc newProject(name: string) =
 
   createDir(name)
 
+  let pkgName = name.replace('-', '_')
+
   # Core files
-  createFile(name / fmt"{name}.nimble", nimbleTemplate(name))
+  createFile(name / fmt"{pkgName}.nimble", nimbleTemplate(pkgName))
   createFile(name / "config.nims", configNimsTemplate())
   createFile(name / ".gitignore", gitignoreTemplate())
   createFile(name / ".env", envTemplate())
 
   # Source files
-  createFile(name / "src" / "app.nim", appTemplate(name))
+  createFile(name / "src" / "app.nim", appTemplate(pkgName))
   createFile(name / "src" / "router.nim", routerTemplate())
   createFile(name / "src" / "schema.nim", schemaTemplate())
   createFile(name / "src" / "controllers" / "todo_controller.nim",
