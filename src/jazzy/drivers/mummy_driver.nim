@@ -1,7 +1,7 @@
 import std/[asyncdispatch, strutils, httpcore, tables, uri]
 import mummy
 import ../http/[types, context]
-import ../core/[server, logger]
+import ../core/[server, logger, config]
 import ../utils/multipart
 
 type
@@ -70,5 +70,12 @@ method serve*(driver: MummyDriver, port: int, address: string,
             Log.debug("    " & line.strip())
         req.respond(500, @[], "Internal Server Error: " & e.msg)
 
-  driver.server = newServer(mummyHandler)
+  let maxUploadSizeStr = getConfig("MAX_UPLOAD_SIZE", "10")
+  var maxBodyLen = 10 * 1024 * 1024 # default 10MB
+  try:
+    maxBodyLen = parseInt(maxUploadSizeStr) * 1024 * 1024
+  except ValueError:
+    Log.debug("Invalid MAX_UPLOAD_SIZE in .env, using 10MB default")
+
+  driver.server = newServer(mummyHandler, maxBodyLen = maxBodyLen)
   driver.server.serve(Port(port), address)
