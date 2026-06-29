@@ -58,17 +58,20 @@ method serve*(driver: MummyDriver, port: int, address: string,
 
     except Exception as e:
       let reqId = if ctx.requestId.len >= 8: ctx.requestId[0..7] else: "unknown"
-      when defined(release):
-        discard e
-        Log.error("Request failed [" & reqId & "]")
-        req.respond(500, @[], "Internal Server Error")
-      else:
-        Log.error($e.name & ": " & e.msg & " [" & reqId & "]")
-        let trace = e.getStackTrace()
-        if trace.len > 0:
-          for line in trace.strip().splitLines():
-            Log.debug("    " & line.strip())
-        req.respond(500, @[], "Internal Server Error: " & e.msg)
+      try:
+        when defined(release):
+          discard e
+          Log.error("Request failed [" & reqId & "]")
+          req.respond(500, @[], "Internal Server Error")
+        else:
+          Log.error($e.name & ": " & e.msg & " [" & reqId & "]")
+          let trace = e.getStackTrace()
+          if trace.len > 0:
+            for line in trace.strip().splitLines():
+              Log.debug("    " & line.strip())
+          req.respond(500, @[], "Internal Server Error: " & e.msg)
+      except Exception as innerE:
+        Log.debug("Could not send 500 response (client disconnected): " & innerE.msg)
 
   driver.server = newServer(mummyHandler)
   driver.server.serve(Port(port), address)
