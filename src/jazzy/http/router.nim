@@ -149,6 +149,11 @@ createRouteMethods(delete, HttpDelete)
 createRouteMethods(patch, HttpPatch)
 createRouteMethods(options, HttpOptions)
 
+proc ws*(router: RouterStatic, path: string, handler: WsHandlerProc) =
+  let wrapped: HandlerProc = proc(ctx: Context): Future[void] {.async.} =
+    ctx.wsHandler = handler
+  router.addRoute(HttpGet, path, wrapped)
+
 proc matchRoute(route: RouteDef, reqParts: seq[string], params: var Table[
     string, string]): bool =
   if route.isWildcard:

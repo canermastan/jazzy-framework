@@ -1,4 +1,4 @@
-import std/[asyncdispatch, strutils, httpcore, tables, uri]
+import std/[asyncdispatch, strutils, httpcore, tables, uri, locks]
 import mummy
 import ../http/[types, context]
 import ../core/[server, logger, config]
@@ -7,6 +7,47 @@ import ../utils/multipart
 type
   MummyDriver* = ref object of ServerDriver
     server: Server
+
+var
+  wsLock: Lock
+  wsHandlers: Table[mummy.WebSocket, WsHandlerProc]
+
+initLock(wsLock)
+
+proc mummyWsHandler(ws: mummy.WebSocket, event: mummy.WebSocketEvent, message: mummy.Message) {.gcsafe.} =
+  var handler: WsHandlerProc
+  {.cast(gcsafe).}:
+    wsLock.acquire()
+    if wsHandlers.hasKey(ws):
+      handler = wsHandlers[ws]
+      if event == mummy.CloseEvent:
+        wsHandlers.del(ws)
+    wsLock.release()
+
+  if handler != nil:
+    let jEvent = case event:
+      of mummy.OpenEvent: WsEvent.OpenEvent
+      of mummy.MessageEvent: WsEvent.MessageEvent
+      of mummy.ErrorEvent: WsEvent.ErrorEvent
+      of mummy.CloseEvent: WsEvent.CloseEvent
+      
+    let jKind = case message.kind:
+      of mummy.TextMessage: WsMessageKind.TextMessage
+      of mummy.BinaryMessage: WsMessageKind.BinaryMessage
+      of mummy.Ping: WsMessageKind.Ping
+      of mummy.Pong: WsMessageKind.Pong
+      
+    let jMsg = WsMessage(kind: jKind, data: message.data)
+    
+    let jWs = new JazzyWebSocket
+    
+    let w = ws
+    jWs.sendProc = proc(data: string) = w.send(data)
+    jWs.closeProc = proc() =
+      when compiles(w.close()): w.close()
+      
+    handler(jWs, jEvent, jMsg)
+
 
 method serve*(driver: MummyDriver, port: int, address: string,
     handler: HandlerProc) {.async.} =
@@ -50,11 +91,18 @@ method serve*(driver: MummyDriver, port: int, address: string,
     try:
       waitFor handler(ctx)
 
-      var headers: seq[(string, string)]
-      for key, val in ctx.response.headers:
-        headers.add((key, val))
+      if ctx.wsHandler != nil:
+        let ws = req.upgradeToWebSocket()
+        {.cast(gcsafe).}:
+          wsLock.acquire()
+          wsHandlers[ws] = ctx.wsHandler
+          wsLock.release()
+      else:
+        var headers: seq[(string, string)]
+        for key, val in ctx.response.headers:
+          headers.add((key, val))
 
-      req.respond(ctx.response.code, headers, ctx.response.body)
+        req.respond(ctx.response.code, headers, ctx.response.body)
 
     except Exception as e:
       let reqId = if ctx.requestId.len >= 8: ctx.requestId[0..7] else: "unknown"
@@ -80,5 +128,5 @@ method serve*(driver: MummyDriver, port: int, address: string,
   except ValueError:
     Log.debug("Invalid MAX_UPLOAD_SIZE in .env, using 10MB default")
 
-  driver.server = newServer(mummyHandler, maxBodyLen = maxBodyLen)
+  driver.server = newServer(mummyHandler, websocketHandler = mummyWsHandler, maxBodyLen = maxBodyLen)
   driver.server.serve(Port(port), address)
