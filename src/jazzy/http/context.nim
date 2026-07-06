@@ -136,9 +136,10 @@ proc render*(ctx: Context, viewName: string, data: JsonNode = newJObject()) =
   let viewsDir = getCurrentDir() / "views"
   let viewPath = viewsDir / (viewName & ".html")
 
-  # Inject global $user variable into the template context
-  if ctx.auth.isLoggedIn and ctx.auth.user.isSome and not data.hasKey("user"):
-    data["user"] = ctx.auth.user.get
+  # Prepare globals for template context
+  var globals = newJObject()
+  if ctx.auth.isLoggedIn and ctx.auth.user.isSome:
+    globals["user"] = ctx.auth.user.get
 
   var content: string
   var ok: bool
@@ -149,12 +150,17 @@ proc render*(ctx: Context, viewName: string, data: JsonNode = newJObject()) =
     return
 
   try:
-    let output = engine.renderString(content, data, viewsDir)
+    let output = engine.renderString(content, data, globals, viewsDir)
     ctx.html(output)
   except ViewError as e:
     ctx.status(500).text("View template error: " & e.msg)
   except Exception as e:
     ctx.status(500).text("View render error: " & e.msg)
+
+proc render*(ctx: Context, viewName: string, key: string, data: JsonNode) =
+  ## Helper to render a view with a single key-value pair, useful for arrays.
+  ## Example: ctx.render("users", "items", dbArray)
+  ctx.render(viewName, %*{key: data})
 
 proc renderCached*(ctx: Context, viewName: string,
                    data: JsonNode = newJObject(), ttl: int = 0) =
@@ -167,9 +173,10 @@ proc renderCached*(ctx: Context, viewName: string,
   let viewsDir = getCurrentDir() / "views"
   let viewPath = viewsDir / (viewName & ".html")
 
-  # Inject global $user variable into the template context
-  if ctx.auth.isLoggedIn and ctx.auth.user.isSome and not data.hasKey("user"):
-    data["user"] = ctx.auth.user.get
+  # Prepare globals for template context
+  var globals = newJObject()
+  if ctx.auth.isLoggedIn and ctx.auth.user.isSome:
+    globals["user"] = ctx.auth.user.get
 
   let dataRepr = $data
 
@@ -190,7 +197,7 @@ proc renderCached*(ctx: Context, viewName: string,
     return
 
   try:
-    let output = engine.renderString(content, data, viewsDir)
+    let output = engine.renderString(content, data, globals, viewsDir)
     {.cast(gcsafe).}:
       ViewCache.putCachedRender(viewPath, dataRepr, output, ttl)
     ctx.html(output)

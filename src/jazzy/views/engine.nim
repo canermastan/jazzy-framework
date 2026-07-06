@@ -61,6 +61,22 @@ proc resolvePath*(data: JsonNode, path: string): JsonNode =
     inc k
   return current
 
+proc resolveVar*(locals, data, globals: JsonNode, path: string): JsonNode =
+  let cleanPath = if path.len > 0 and path[0] == '$': path[1..^1] else: path
+  if cleanPath == "data": return data
+
+  var res = resolvePath(locals, cleanPath)
+  if res.kind != JNull: return res
+
+  res = resolvePath(data, cleanPath)
+  if res.kind != JNull: return res
+
+  if not globals.isNil:
+    res = resolvePath(globals, cleanPath)
+    if res.kind != JNull: return res
+
+  return newJNull()
+
 proc resolveInt*(data: JsonNode, path: string, default: int = 0): int =
   ## Resolves a path and coerces the result to int.
   let n = resolvePath(data, path)
@@ -153,17 +169,17 @@ proc extractSections*(tmpl: string): SectionsTable =
 
 # Forward declaration for the core recursive renderer
 
-proc renderSpanImpl(tmpl: string, data: JsonNode, spanStart, spanEnd: int,
+proc renderSpanImpl(tmpl: string, data, globals, locals: JsonNode, spanStart, spanEnd: int,
                     depth: int, viewsDir: string, sections: SectionsTable,
                     res: var string)
 
 # Variable emitter
 
-proc emitVar(tmpl: string, nameA, nameZ: int, data: JsonNode,
+proc emitVar(tmpl: string, nameA, nameZ: int, data, globals, locals: JsonNode,
              escaped: bool, res: var string) {.inline.} =
   let (a, z) = stripSlice(tmpl, nameA, nameZ)
   if z <= a: return
-  let node = resolvePath(data, tmpl[a ..< z])
+  let node = resolveVar(locals, data, globals, tmpl[a ..< z])
   case node.kind
   of JNull: discard
   of JString:
@@ -255,7 +271,7 @@ proc resolveViewPath(viewsDir, name: string): string {.inline.} =
   if name.endsWith(".html"): viewsDir / name
   else:                      viewsDir / name & ".html"
 
-proc renderSpanImpl(tmpl: string, data: JsonNode, spanStart, spanEnd: int,
+proc renderSpanImpl(tmpl: string, data, globals, locals: JsonNode, spanStart, spanEnd: int,
                     depth: int, viewsDir: string, sections: SectionsTable,
                     res: var string) =
   ## Renders tmpl[spanStart..<spanEnd] into `res`.
@@ -289,7 +305,7 @@ proc renderSpanImpl(tmpl: string, data: JsonNode, spanStart, spanEnd: int,
       if name.len > 0 and nextPos != -1:
         if sections.hasKey(name):
           let sc = sections[name]
-          renderSpanImpl(sc, data, 0, sc.len, depth + 1, viewsDir, sections, res)
+          renderSpanImpl(sc, data, globals, locals, 0, sc.len, depth + 1, viewsDir, sections, res)
         i = nextPos; continue
       res.add(tmpl[i]); inc i; continue
 
@@ -307,7 +323,7 @@ proc renderSpanImpl(tmpl: string, data: JsonNode, spanStart, spanEnd: int,
                       except IOError as e:
                         raise newException(ViewError,
                           "@include read error '" & name & "': " & e.msg)
-        renderSpanImpl(content, data, 0, content.len, depth + 1, viewsDir, sections, res)
+        renderSpanImpl(content, data, globals, locals, 0, content.len, depth + 1, viewsDir, sections, res)
         i = nextPos; continue
       res.add(tmpl[i]); inc i; continue
 
@@ -315,14 +331,14 @@ proc renderSpanImpl(tmpl: string, data: JsonNode, spanStart, spanEnd: int,
     elif matchAt(tmpl, "{!!", i):
       let endIdx = findFrom(tmpl, "!!}", i + 3)
       if endIdx != -1 and endIdx < spanEnd:
-        emitVar(tmpl, i + 3, endIdx, data, escaped = false, res)
+        emitVar(tmpl, i + 3, endIdx, data, globals, locals, escaped = false, res)
         i = endIdx + 3; continue
 
     # {{ $variable }} — HTML-escaped output
     elif matchAt(tmpl, "{{", i):
       let endIdx = findFrom(tmpl, "}}", i + 2)
       if endIdx != -1 and endIdx < spanEnd:
-        emitVar(tmpl, i + 2, endIdx, data, escaped = true, res)
+        emitVar(tmpl, i + 2, endIdx, data, globals, locals, escaped = true, res)
         i = endIdx + 2; continue
 
     # @if(condition) ... [@else ...] @endif
@@ -332,15 +348,15 @@ proc renderSpanImpl(tmpl: string, data: JsonNode, spanStart, spanEnd: int,
       if condEnd == -1 or condEnd >= spanEnd:
         res.add(tmpl[i]); inc i; continue
       let (ca, cz) = stripSlice(tmpl, condStart, condEnd)
-      let isTrue   = isTruthy(resolvePath(data, tmpl[ca ..< cz]))
+      let isTrue   = isTruthy(resolveVar(locals, data, globals, tmpl[ca ..< cz]))
       let blk      = scanBlock(tmpl, condEnd + 1, "@if(", "@else", "@endif")
       if blk.endPos == -1 or blk.endPos > spanEnd:
         res.add(tmpl[i]); inc i; continue
       if blk.elsePos != -1:
-        if isTrue: renderSpanImpl(tmpl, data, condEnd + 1,    blk.elsePos, depth + 1, viewsDir, sections, res)
-        else:      renderSpanImpl(tmpl, data, blk.elsePos + 5, blk.endPos, depth + 1, viewsDir, sections, res)
+        if isTrue: renderSpanImpl(tmpl, data, globals, locals, condEnd + 1,    blk.elsePos, depth + 1, viewsDir, sections, res)
+        else:      renderSpanImpl(tmpl, data, globals, locals, blk.elsePos + 5, blk.endPos, depth + 1, viewsDir, sections, res)
       elif isTrue:
-        renderSpanImpl(tmpl, data, condEnd + 1, blk.endPos, depth + 1, viewsDir, sections, res)
+        renderSpanImpl(tmpl, data, globals, locals, condEnd + 1, blk.endPos, depth + 1, viewsDir, sections, res)
       i = blk.endPos + blk.endTagLen; continue
 
     # @foreach(list as item) ... @endforeach
@@ -355,7 +371,7 @@ proc renderSpanImpl(tmpl: string, data: JsonNode, spanStart, spanEnd: int,
         res.add(tmpl[i]); inc i; continue
       let listVar  = expr[0 ..< asIdx].strip()
       let itemVar  = expr[asIdx + 4 .. ^1].strip()
-      let listNode = resolvePath(data, listVar)
+      let listNode = resolveVar(locals, data, globals, listVar)
       let blk      = scanBlock(tmpl, exprEnd + 1, "@foreach(", "", "@endforeach")
       if blk.endPos == -1 or blk.endPos > spanEnd:
         res.add(tmpl[i]); inc i; continue
@@ -366,13 +382,13 @@ proc renderSpanImpl(tmpl: string, data: JsonNode, spanStart, spanEnd: int,
           if iterCount > MAX_LOOP_ITER:
             raise newException(ViewError,
               "@foreach exceeded MAX_LOOP_ITER (" & $MAX_LOOP_ITER & ")")
-          # Temporarily inject the loop variable, then restore the original value.
-          let hadKey = data.kind == JObject and data.hasKey(itemVar)
-          let oldVal = if hadKey: data[itemVar] else: nil
-          data[itemVar] = item
-          renderSpanImpl(tmpl, data, exprEnd + 1, blk.endPos, depth + 1, viewsDir, sections, res)
-          if hadKey and not oldVal.isNil: data[itemVar] = oldVal
-          elif data.kind == JObject:      data.delete(itemVar)
+          # Temporarily inject the loop variable into locals, then restore the original value.
+          let hadKey = locals.hasKey(itemVar)
+          let oldVal = if hadKey: locals[itemVar] else: nil
+          locals[itemVar] = item
+          renderSpanImpl(tmpl, data, globals, locals, exprEnd + 1, blk.endPos, depth + 1, viewsDir, sections, res)
+          if hadKey and not oldVal.isNil: locals[itemVar] = oldVal
+          else: locals.delete(itemVar)
       i = blk.endPos + blk.endTagLen; continue
 
     # @for($i = 0; $i < N; $i++) ... @endfor
@@ -396,12 +412,12 @@ proc renderSpanImpl(tmpl: string, data: JsonNode, spanStart, spanEnd: int,
         if iterCount > MAX_LOOP_ITER:
           raise newException(ViewError,
             "@for exceeded MAX_LOOP_ITER (" & $MAX_LOOP_ITER & ")")
-        let hadKey = data.kind == JObject and data.hasKey(hdr.varName)
-        let oldVal = if hadKey: data[hdr.varName] else: nil
-        data[hdr.varName] = %counter
-        renderSpanImpl(tmpl, data, hdrEnd + 1, blk.endPos, depth + 1, viewsDir, sections, res)
-        if hadKey and not oldVal.isNil: data[hdr.varName] = oldVal
-        elif data.kind == JObject:      data.delete(hdr.varName)
+        let hadKey = locals.hasKey(hdr.varName)
+        let oldVal = if hadKey: locals[hdr.varName] else: nil
+        locals[hdr.varName] = %counter
+        renderSpanImpl(tmpl, data, globals, locals, hdrEnd + 1, blk.endPos, depth + 1, viewsDir, sections, res)
+        if hadKey and not oldVal.isNil: locals[hdr.varName] = oldVal
+        else: locals.delete(hdr.varName)
         counter += hdr.step
       i = blk.endPos + blk.endTagLen; continue
 
@@ -414,9 +430,15 @@ proc renderSpan*(tmpl: string, data: JsonNode, spanStart, spanEnd: int,
                  depth: int, res: var string) =
   ## Public single-string render without layout support.
   ## Kept for backward compatibility and direct use in tests.
-  renderSpanImpl(tmpl, data, spanStart, spanEnd, depth, "", initTable[string, string](), res)
+  renderSpanImpl(tmpl, data, newJObject(), newJObject(), spanStart, spanEnd, depth, "", initTable[string, string](), res)
 
-proc renderString*(tmpl: string, data: JsonNode, viewsDir: string = ""): string =
+proc renderString*(tmpl: string, data: JsonNode, globals: JsonNode = nil, viewsDir: string = ""): string
+
+proc renderString*(tmpl: string, data: JsonNode, viewsDir: string): string =
+  ## Backward compatibility overload for existing code that passed viewsDir as 3rd arg.
+  renderString(tmpl, data, nil, viewsDir)
+
+proc renderString*(tmpl: string, data: JsonNode, globals: JsonNode = nil, viewsDir: string = ""): string =
   ## Renders `tmpl` with `data` as the variable context.
   ##
   ## If `viewsDir` is provided, enables @extends (layout inheritance) and @include.
@@ -424,9 +446,10 @@ proc renderString*(tmpl: string, data: JsonNode, viewsDir: string = ""): string 
   ##   Pass 1: extract all @section blocks from the child template.
   ##   Pass 2: render the layout file, filling @yield slots with section content.
   ##
-  ## Thread-safe: all state is stack-local except for `data` mutations during
-  ## @foreach/@for (which are always restored before returning).
+  ## Thread-safe: all state is stack-local.
   let layoutName = extractExtends(tmpl)
+  let safeGlobals = if globals.isNil: newJObject() else: globals
+  var locals = newJObject()
 
   if layoutName.len > 0 and viewsDir.len > 0:
     let sections = extractSections(tmpl)
@@ -438,7 +461,7 @@ proc renderString*(tmpl: string, data: JsonNode, viewsDir: string = ""): string 
       except IOError as e:
         raise newException(ViewError, "@extends read error: " & e.msg)
     result = newStringOfCap(layoutContent.len * 2)
-    renderSpanImpl(layoutContent, data, 0, layoutContent.len, 0, viewsDir, sections, result)
+    renderSpanImpl(layoutContent, data, safeGlobals, locals, 0, layoutContent.len, 0, viewsDir, sections, result)
   else:
     result = newStringOfCap(tmpl.len + (tmpl.len shr 1))
-    renderSpanImpl(tmpl, data, 0, tmpl.len, 0, viewsDir, initTable[string, string](), result)
+    renderSpanImpl(tmpl, data, safeGlobals, locals, 0, tmpl.len, 0, viewsDir, initTable[string, string](), result)

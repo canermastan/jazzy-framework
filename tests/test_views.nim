@@ -57,6 +57,11 @@ suite "JazzyViews Engine":
     let tmpl = "@foreach(rows as r)(@foreach(r.cells as c){{ $c.v }}@endforeach)@endforeach"
     check renderString(tmpl, data) == "(12)(3)"
 
+  test "Array rendering with $data root context":
+    let data = %*[{"name": "Ali"}, {"name": "Ayse"}]
+    # $data refers to the root array context
+    check renderString("@foreach($data as u){{ $u.name }} @endforeach", data) == "Ali Ayse "
+
   test "@for counted loop":
     let data = newJObject()
 
