@@ -1,6 +1,6 @@
 import std/[json, strutils, tables, os]
 
-# JazzyViews template engine — Blade-like syntax, zero external dependencies.
+# Melody template engine — Blade-like syntax, zero external dependencies.
 #
 # Supported syntax:
 #   {{ $variable }}                     HTML-escaped output (XSS-safe)
@@ -125,41 +125,53 @@ proc stripSlice(s: string, a, b: int): (int, int) {.inline.} =
   while hi >= lo and s[hi] in {' ', '\t', '\r', '\n'}: dec hi
   return (lo, hi + 1)
 
-proc extractQuotedArg(tmpl: string, parenPos: int): tuple[name: string, nextPos: int] =
-  ## Extracts the string argument from a @tag("argument") expression.
-  ## `parenPos` must point to the '(' character.
-  ## Returns ("", -1) on malformed/missing input.
-  let q1 = findFrom(tmpl, "\"", parenPos)
-  if q1 == -1: return (name: "", nextPos: -1)
+proc extractStringArg(tmpl: string, startIdx: int, tagName: string): tuple[name: string, nextPos: int, isLegacy: bool] =
+  ## Extracts the string argument from a @tag("argument") or @tag "argument" expression.
+  var j = startIdx
+  var isLegacy = false
+  if j < tmpl.len and tmpl[j] == '(':
+    isLegacy = true
+    inc j
+  else:
+    while j < tmpl.len and tmpl[j] in {' ', '\t'}: inc j
+
+  let q1 = findFrom(tmpl, "\"", j)
+  if q1 == -1: return (name: "", nextPos: -1, isLegacy: false)
   let q2 = findFrom(tmpl, "\"", q1 + 1)
-  if q2 == -1: return (name: "", nextPos: -1)
-  let cp = findFrom(tmpl, ")", q2)
-  if cp == -1: return (name: "", nextPos: -1)
-  return (name: tmpl[q1 + 1 ..< q2], nextPos: cp + 1)
+  if q2 == -1: return (name: "", nextPos: -1, isLegacy: false)
+  
+  var nextPos = q2 + 1
+  if isLegacy:
+    let cp = findFrom(tmpl, ")", nextPos)
+    if cp == -1: return (name: "", nextPos: -1, isLegacy: true)
+    nextPos = cp + 1
+
+  return (name: tmpl[q1 + 1 ..< q2], nextPos: nextPos, isLegacy: isLegacy)
 
 # Layout pre-processing — runs once before the main render pass
 
 proc extractExtends*(tmpl: string): string =
-  ## Scans the template for @extends("name") and returns the layout name.
+  ## Scans the template for @extends("name") or @extends "name" and returns the layout name.
   ## Returns "" if no @extends directive is found.
   var i = 0
   while i < tmpl.len:
-    if matchAt(tmpl, "@extends(", i):
-      let (name, _) = extractQuotedArg(tmpl, i + 8)
-      return name
+    if matchAt(tmpl, "@extends", i):
+      let (name, nextPos, isLegacy) = extractStringArg(tmpl, i + 8, "@extends")
+      if nextPos != -1:
+        if isLegacy: stderr.writeLine("[Melody Warning] @extends(...) is deprecated. Please use Nim-style `@extends \"...\"` instead.")
+        return name
     inc i
   return ""
 
 proc extractSections*(tmpl: string): SectionsTable =
-  ## Collects all @section("name")..@endsection blocks from a child template.
-  ## The stored content is raw (not yet rendered) so it can receive variables
-  ## and directives from the parent data context when @yield emits it.
+  ## Collects all @section blocks from a child template.
   result = initTable[string, string]()
   var i = 0
   while i < tmpl.len:
-    if matchAt(tmpl, "@section(", i):
-      let (name, afterTag) = extractQuotedArg(tmpl, i + 8)
+    if matchAt(tmpl, "@section", i):
+      let (name, afterTag, isLegacy) = extractStringArg(tmpl, i + 8, "@section")
       if name.len == 0 or afterTag == -1: inc i; continue
+      if isLegacy: stderr.writeLine("[Melody Warning] @section(...) is deprecated. Please use Nim-style `@section \"...\"` instead.")
       let endIdx = findFrom(tmpl, "@endsection", afterTag)
       if endIdx == -1: inc i; continue
       result[name] = tmpl[afterTag ..< endIdx]
@@ -196,16 +208,22 @@ type BlockInfo = object
   endPos:    int  ## Position of the closing tag (-1 = unterminated)
   endTagLen: int
 
-proc scanBlock(tmpl: string, pos: int, openTag, elseTag, closeTag: string): BlockInfo =
+proc scanBlock(tmpl: string, pos: int, openTags: openArray[string], elseTag, closeTag: string): BlockInfo =
   ## Scans forward from `pos` to find the matching closing tag, correctly
   ## tracking nested open/close pairs (e.g. @if inside @if).
   result = BlockInfo(elsePos: -1, endPos: -1, endTagLen: closeTag.len)
   var depth = 1
   var j     = pos
   while j < tmpl.len:
-    if matchAt(tmpl, openTag, j):
-      inc depth; j += openTag.len
-    elif elseTag.len > 0 and depth == 1 and matchAt(tmpl, elseTag, j):
+    var matchedOpen = false
+    for ot in openTags:
+      if matchAt(tmpl, ot, j):
+        inc depth; j += ot.len
+        matchedOpen = true
+        break
+    if matchedOpen: continue
+
+    if elseTag.len > 0 and depth == 1 and matchAt(tmpl, elseTag, j):
       result.elsePos = j; j += elseTag.len
     elif matchAt(tmpl, closeTag, j):
       dec depth
@@ -284,35 +302,37 @@ proc renderSpanImpl(tmpl: string, data, globals, locals: JsonNode, spanStart, sp
   var i = spanStart
   while i < spanEnd:
 
-    # @extends("layout") — already processed before this call; skip silently.
-    if matchAt(tmpl, "@extends(", i):
-      let (_, nextPos) = extractQuotedArg(tmpl, i + 8)
+    # @extends("layout") or @extends "layout" — already processed before this call; skip silently.
+    if matchAt(tmpl, "@extends", i):
+      let (_, nextPos, _) = extractStringArg(tmpl, i + 8, "@extends")
       i = if nextPos != -1: nextPos else: i + 1
       continue
 
     # @section("name")..@endsection — already extracted; skip silently.
-    elif matchAt(tmpl, "@section(", i):
-      let (_, afterTag) = extractQuotedArg(tmpl, i + 8)
+    elif matchAt(tmpl, "@section", i):
+      let (_, afterTag, _) = extractStringArg(tmpl, i + 8, "@section")
       if afterTag != -1:
         let endIdx = findFrom(tmpl, "@endsection", afterTag)
         if endIdx != -1:
           i = endIdx + "@endsection".len; continue
       res.add(tmpl[i]); inc i; continue
 
-    # @yield("name") — emit the matching section content from the child template.
-    elif matchAt(tmpl, "@yield(", i):
-      let (name, nextPos) = extractQuotedArg(tmpl, i + 6)
+    # @yield("name") or @yield "name" — emit the matching section content from the child template.
+    elif matchAt(tmpl, "@yield", i):
+      let (name, nextPos, isLegacy) = extractStringArg(tmpl, i + 6, "@yield")
       if name.len > 0 and nextPos != -1:
+        if isLegacy: stderr.writeLine("[Melody Warning] @yield(...) is deprecated. Please use Nim-style `@yield \"...\"` instead.")
         if sections.hasKey(name):
           let sc = sections[name]
           renderSpanImpl(sc, data, globals, locals, 0, sc.len, depth + 1, viewsDir, sections, res)
         i = nextPos; continue
       res.add(tmpl[i]); inc i; continue
 
-    # @include("path") — embed a partial template, rendered with current data.
-    elif matchAt(tmpl, "@include(", i):
-      let (name, nextPos) = extractQuotedArg(tmpl, i + 8)
+    # @include("path") or @include "path" — embed a partial template, rendered with current data.
+    elif matchAt(tmpl, "@include", i):
+      let (name, nextPos, isLegacy) = extractStringArg(tmpl, i + 8, "@include")
       if name.len > 0 and nextPos != -1:
+        if isLegacy: stderr.writeLine("[Melody Warning] @include(...) is deprecated. Please use Nim-style `@include \"...\"` instead.")
         if viewsDir.len == 0:
           raise newException(ViewError,
             "@include requires a viewsDir (use ctx.render instead of renderString)")
@@ -341,38 +361,66 @@ proc renderSpanImpl(tmpl: string, data, globals, locals: JsonNode, spanStart, sp
         emitVar(tmpl, i + 2, endIdx, data, globals, locals, escaped = true, res)
         i = endIdx + 2; continue
 
-    # @if(condition) ... [@else ...] @endif
-    elif matchAt(tmpl, "@if(", i):
-      let condStart = i + 4
-      let condEnd   = findFrom(tmpl, ")", condStart)
-      if condEnd == -1 or condEnd >= spanEnd:
+    # @if(condition) or @if condition ... [@else ...] @endif
+    elif matchAt(tmpl, "@if", i):
+      let isParen = matchAt(tmpl, "@if(", i)
+      let isSpace = matchAt(tmpl, "@if ", i)
+      if not (isParen or isSpace):
         res.add(tmpl[i]); inc i; continue
+        
+      if isParen: stderr.writeLine("[Melody Warning] @if(...) is deprecated. Please use Nim-style `@if cond` instead.")
+        
+      var condStart = if isParen: i + 4 else: i + 4
+      var condEnd = -1
+      var exprEnd = -1
+      
+      if isSpace:
+        while condStart < spanEnd and tmpl[condStart] in {' ', '\t'}: inc condStart
+        var j = condStart
+        while j < spanEnd and tmpl[j] in {'a'..'z', 'A'..'Z', '0'..'9', '_', '.', '$'}: inc j
+        condEnd = j
+        exprEnd = j
+      else:
+        condEnd = findFrom(tmpl, ")", condStart)
+        if condEnd != -1: exprEnd = condEnd + 1
+        
+      if condEnd == -1 or exprEnd == -1 or condEnd >= spanEnd:
+        res.add(tmpl[i]); inc i; continue
+        
       let (ca, cz) = stripSlice(tmpl, condStart, condEnd)
       let isTrue   = isTruthy(resolveVar(locals, data, globals, tmpl[ca ..< cz]))
-      let blk      = scanBlock(tmpl, condEnd + 1, "@if(", "@else", "@endif")
+      let blk      = scanBlock(tmpl, exprEnd, ["@if(", "@if "], "@else", "@endif")
       if blk.endPos == -1 or blk.endPos > spanEnd:
         res.add(tmpl[i]); inc i; continue
+        
       if blk.elsePos != -1:
-        if isTrue: renderSpanImpl(tmpl, data, globals, locals, condEnd + 1,    blk.elsePos, depth + 1, viewsDir, sections, res)
+        if isTrue: renderSpanImpl(tmpl, data, globals, locals, exprEnd,    blk.elsePos, depth + 1, viewsDir, sections, res)
         else:      renderSpanImpl(tmpl, data, globals, locals, blk.elsePos + 5, blk.endPos, depth + 1, viewsDir, sections, res)
       elif isTrue:
-        renderSpanImpl(tmpl, data, globals, locals, condEnd + 1, blk.endPos, depth + 1, viewsDir, sections, res)
+        renderSpanImpl(tmpl, data, globals, locals, exprEnd, blk.endPos, depth + 1, viewsDir, sections, res)
       i = blk.endPos + blk.endTagLen; continue
 
-    # @foreach(list as item) ... @endforeach
+    # @foreach(list as item) or @foreach(item in list) ... @endforeach
     elif matchAt(tmpl, "@foreach(", i):
+      stderr.writeLine("[Melody Warning] @foreach is deprecated. Please use Nim-style `@for item in list` loops instead.")
       let exprStart = i + 9
       let exprEnd   = findFrom(tmpl, ")", exprStart)
       if exprEnd == -1 or exprEnd >= spanEnd:
         res.add(tmpl[i]); inc i; continue
       let expr    = tmpl[exprStart ..< exprEnd].strip()
       let asIdx   = expr.find(" as ")
-      if asIdx == -1:
+      let inIdx   = expr.find(" in ")
+      var listVar, itemVar: string
+      if asIdx != -1:
+        listVar = expr[0 ..< asIdx].strip()
+        itemVar = expr[asIdx + 4 .. ^1].strip()
+      elif inIdx != -1:
+        itemVar = expr[0 ..< inIdx].strip()
+        listVar = expr[inIdx + 4 .. ^1].strip()
+      else:
         res.add(tmpl[i]); inc i; continue
-      let listVar  = expr[0 ..< asIdx].strip()
-      let itemVar  = expr[asIdx + 4 .. ^1].strip()
       let listNode = resolveVar(locals, data, globals, listVar)
-      let blk      = scanBlock(tmpl, exprEnd + 1, "@foreach(", "", "@endforeach")
+      let blk      = scanBlock(tmpl, exprEnd + 1, ["@foreach("], "", "@endforeach")
       if blk.endPos == -1 or blk.endPos > spanEnd:
         res.add(tmpl[i]); inc i; continue
       if listNode.kind == JArray:
@@ -391,35 +439,91 @@ proc renderSpanImpl(tmpl: string, data, globals, locals: JsonNode, spanStart, sp
           else: locals.delete(itemVar)
       i = blk.endPos + blk.endTagLen; continue
 
-    # @for($i = 0; $i < N; $i++) ... @endfor
-    elif matchAt(tmpl, "@for(", i):
-      let hdrStart = i + 5
-      let hdrEnd   = findFrom(tmpl, ")", hdrStart)
-      if hdrEnd == -1 or hdrEnd >= spanEnd:
+    # Nim-style @for user in users ... @endfor
+    # OR C-style @for($i = 0; $i < N; $i++) ... @endfor
+    elif matchAt(tmpl, "@for", i) and not matchAt(tmpl, "@foreach", i):
+      let isParen = matchAt(tmpl, "@for(", i)
+      let isSpace = matchAt(tmpl, "@for ", i)
+      if not (isParen or isSpace):
         res.add(tmpl[i]); inc i; continue
-      let hdr = parseForHeader(tmpl, hdrStart, hdrEnd)
-      if not hdr.ok:
-        res.add(tmpl[i]); inc i; continue
-      let blk = scanBlock(tmpl, hdrEnd + 1, "@for(", "", "@endfor")
-      if blk.endPos == -1 or blk.endPos > spanEnd:
-        res.add(tmpl[i]); inc i; continue
-      var counter   = hdr.initVal
-      var iterCount = 0
-      while true:
-        let done = if hdr.step > 0: counter >= hdr.limit else: counter <= hdr.limit
-        if done: break
-        inc iterCount
-        if iterCount > MAX_LOOP_ITER:
-          raise newException(ViewError,
-            "@for exceeded MAX_LOOP_ITER (" & $MAX_LOOP_ITER & ")")
-        let hadKey = locals.hasKey(hdr.varName)
-        let oldVal = if hadKey: locals[hdr.varName] else: nil
-        locals[hdr.varName] = %counter
-        renderSpanImpl(tmpl, data, globals, locals, hdrEnd + 1, blk.endPos, depth + 1, viewsDir, sections, res)
-        if hadKey and not oldVal.isNil: locals[hdr.varName] = oldVal
-        else: locals.delete(hdr.varName)
-        counter += hdr.step
-      i = blk.endPos + blk.endTagLen; continue
+      
+      var parseAsIter = false
+      var itemVar = ""
+      var listVar = ""
+      var exprEnd = -1
+      
+      var j = if isParen: i + 5 else: i + 5
+      while j < spanEnd and tmpl[j] in {' ', '\t'}: inc j
+      let itemStart = j
+      while j < spanEnd and tmpl[j] notin {' ', '\t', '\n', '\r', ')'}: inc j
+      itemVar = tmpl[itemStart ..< j]
+      
+      while j < spanEnd and tmpl[j] in {' ', '\t'}: inc j
+      let inStart = j
+      while j < spanEnd and tmpl[j] notin {' ', '\t', '\n', '\r', ')'}: inc j
+      let inKeyword = tmpl[inStart ..< j]
+      
+      if inKeyword == "in":
+        while j < spanEnd and tmpl[j] in {' ', '\t'}: inc j
+        let listStart = j
+        while j < spanEnd and tmpl[j] in {'a'..'z', 'A'..'Z', '0'..'9', '_', '.', '$'}: inc j
+        listVar = tmpl[listStart ..< j]
+        
+        while j < spanEnd and tmpl[j] in {' ', '\t'}: inc j
+        if isParen and j < spanEnd and tmpl[j] == ')':
+          exprEnd = j + 1
+          parseAsIter = true
+        elif not isParen:
+          exprEnd = j
+          parseAsIter = true
+          
+      if parseAsIter:
+        let listNode = resolveVar(locals, data, globals, listVar)
+        let blk = scanBlock(tmpl, exprEnd, ["@for(", "@for "], "", "@endfor")
+        if blk.endPos == -1 or blk.endPos > spanEnd:
+          res.add(tmpl[i]); inc i; continue
+        if listNode.kind == JArray:
+          var iterCount = 0
+          for item in listNode.getElems():
+            inc iterCount
+            if iterCount > MAX_LOOP_ITER:
+              raise newException(ViewError, "@for exceeded MAX_LOOP_ITER (" & $MAX_LOOP_ITER & ")")
+            let hadKey = locals.hasKey(itemVar)
+            let oldVal = if hadKey: locals[itemVar] else: nil
+            locals[itemVar] = item
+            renderSpanImpl(tmpl, data, globals, locals, exprEnd, blk.endPos, depth + 1, viewsDir, sections, res)
+            if hadKey and not oldVal.isNil: locals[itemVar] = oldVal
+            else: locals.delete(itemVar)
+        i = blk.endPos + blk.endTagLen; continue
+        
+      # If not iterator, try C-style counted loop, which requires parens
+      if isParen:
+        let hdrStart = i + 5
+        let hdrEnd   = findFrom(tmpl, ")", hdrStart)
+        if hdrEnd != -1 and hdrEnd < spanEnd:
+          let hdr = parseForHeader(tmpl, hdrStart, hdrEnd)
+          if hdr.ok:
+            let blk = scanBlock(tmpl, hdrEnd + 1, ["@for(", "@for "], "", "@endfor")
+            if blk.endPos != -1 and blk.endPos <= spanEnd:
+              var counter   = hdr.initVal
+              var iterCount = 0
+              while true:
+                let done = if hdr.step > 0: counter >= hdr.limit else: counter <= hdr.limit
+                if done: break
+                inc iterCount
+                if iterCount > MAX_LOOP_ITER:
+                  raise newException(ViewError, "@for exceeded MAX_LOOP_ITER (" & $MAX_LOOP_ITER & ")")
+                let hadKey = locals.hasKey(hdr.varName)
+                let oldVal = if hadKey: locals[hdr.varName] else: nil
+                locals[hdr.varName] = %counter
+                renderSpanImpl(tmpl, data, globals, locals, hdrEnd + 1, blk.endPos, depth + 1, viewsDir, sections, res)
+                if hadKey and not oldVal.isNil: locals[hdr.varName] = oldVal
+                else: locals.delete(hdr.varName)
+                counter += hdr.step
+              i = blk.endPos + blk.endTagLen; continue
+
+      # Fallback if both fail
+      res.add(tmpl[i]); inc i; continue
 
     res.add(tmpl[i])
     inc i

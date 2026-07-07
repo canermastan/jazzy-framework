@@ -19,7 +19,7 @@ suite "JazzyViews Engine":
     # Escaped variant should escape it
     check renderString("{{ $html }}", data) == "&lt;strong&gt;bold&lt;/strong&gt;"
 
-  test "@if conditionals":
+  test "@if conditionals (legacy)":
     let data = %*{"isAdmin": true, "isUser": false, "user": {"name": "Admin"}}
 
     check renderString("@if(isAdmin)Welcome@endif", data) == "Welcome"
@@ -28,23 +28,47 @@ suite "JazzyViews Engine":
     # Missing key -> falsy
     check renderString("@if(missingKey)Yes@elseNo@endif", data) == "No"
 
+  test "@if conditionals (Nim-style)":
+    let data = %*{"isAdmin": true, "isUser": false, "user": {"name": "Admin"}}
+
+    check renderString("@if isAdmin Welcome@endif", data) == " Welcome"
+    check renderString("@if isUser User@elseNot User@endif", data) == "Not User"
+    check renderString("@if isAdmin\nHello {{ $user.name }}@endif", data) == "\nHello Admin"
+    check renderString("@if missingKey Yes@elseNo@endif", data) == "No"
+
   test "@if nested":
     let data = %*{"a": true, "b": true, "c": false}
 
-    let tmpl = "@if(a)outer@if(b)inner@endif@endif"
-    check renderString(tmpl, data) == "outerinner"
+    let tmpl = "@if a outer@if b inner@endif@endif"
+    check renderString(tmpl, data) == " outer inner"
 
-    let tmpl2 = "@if(a)@if(c)deep@else!deep@endif@endif"
-    check renderString(tmpl2, data) == "!deep"
+    let tmpl2 = "@if a @if c deep@else!deep@endif@endif"
+    check renderString(tmpl2, data) == " !deep"
 
-  test "@foreach loops":
+  test "@foreach loops (legacy)":
     let data = %*{"users": [{"name": "Ali"}, {"name": "Ayse"}]}
 
     check renderString("@foreach(users as u){{ $u.name }} @endforeach", data) ==
       "Ali Ayse "
+    check renderString("@foreach(u in users){{ $u.name }} @endforeach", data) ==
+      "Ali Ayse "
     # Nested @if inside @foreach
     check renderString(
       "@foreach(users as u)@if(u.name)[{{ $u.name }}]@endif@endforeach", data) ==
+      "[Ali][Ayse]"
+
+  test "@for Nim-style loops":
+    let data = %*{"users": [{"name": "Ali"}, {"name": "Ayse"}]}
+    
+    # Without parens
+    check renderString("@for u in users\n{{ $u.name }} @endfor", data) == "\nAli \nAyse "
+    check renderString("@for u in users {{ $u.name }} @endfor", data) == "Ali Ayse "
+    check renderString("@for u in users{{ $u.name }}@endfor", data) == "AliAyse"
+    # With parens
+    check renderString("@for(u in users){{ $u.name }} @endfor", data) == "Ali Ayse "
+    # Nested @if inside @for
+    check renderString(
+      "@for u in users@if(u.name)[{{ $u.name }}]@endif@endfor", data) ==
       "[Ali][Ayse]"
 
   test "@foreach nested":

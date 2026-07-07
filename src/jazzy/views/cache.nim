@@ -1,7 +1,7 @@
 import std/[tables, times, locks, os, hashes]
 import ../core/config
 
-# Two-tier in-memory view cache for JazzyViews.
+# Two-tier in-memory view cache for Melody.
 #
 # Tier 1 (file cache): stores raw template content keyed by absolute path.
 #   Invalidated automatically when the file's mtime changes.
