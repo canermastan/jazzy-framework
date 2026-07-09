@@ -170,7 +170,7 @@ proc count*(qb: QueryBuilder): int =
 
   withDB:
     for row in database.getConn().iterate(sqlStr, finalParams):
-      return row[0].intVal
+      return int(row[0].intVal)
   return 0
 
 proc forceDelete*(qb: QueryBuilder) =
