@@ -163,7 +163,7 @@ proc render*(ctx: Context, viewName: string, key: string, data: JsonNode) =
   ctx.render(viewName, %*{key: data})
 
 proc renderCached*(ctx: Context, viewName: string,
-                   data: JsonNode = newJObject(), ttl: int = 0) =
+                   data: JsonNode = newJObject(), ttl: float = 0.0) =
   ## Renders a view using BOTH Tier-1 (file) and Tier-2 (output) cache.
   ## Supports @extends, @include, @yield, and @section.
   ##
