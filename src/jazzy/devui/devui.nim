@@ -3,14 +3,16 @@ import ../http/[context, types, router]
 import ../core/[config, cache, logger, version]
 import ../db/[database, builder]
 import tiny_sqlite
+from std/os import DirSep, AltSep
+from std/strutils import rsplit
 
-const baseDir = currentSourcePath().parentDir()
+const baseDir = currentSourcePath.rsplit({DirSep, AltSep}, 1)[0]
 
 const
-  devUiHtml = staticRead(baseDir / "assets/index.html").replace(
+  devUiHtml = staticRead(baseDir & "/assets/index.html").replace(
       "{{JAZZY_VERSION}}", JAZZY_VERSION)
-  picoCss = staticRead(baseDir / "assets/pico.min.css")
-  alpineJs = staticRead(baseDir / "assets/alpine.min.js")
+  picoCss = staticRead(baseDir & "/assets/pico.min.css")
+  alpineJs = staticRead(baseDir & "/assets/alpine.min.js")
 
 const sensitiveKeywords = ["secret", "password", "key"]
 
@@ -32,7 +34,7 @@ proc getDbTablesApi*(ctx: Context) {.async.} =
         t["name"] = %tableName
         var count = 0
         for cRow in conn.iterate("SELECT COUNT(*) FROM " & tableName):
-          count = cRow[0].intVal
+          count = int(cRow[0].intVal)
         t["count"] = %count
         tablesArray.add(t)
     ctx.json(tablesArray)
