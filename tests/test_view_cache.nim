@@ -21,7 +21,7 @@ suite "JazzyViews File Cache (Tier-1)":
     let (c1, ok1) = store.loadTemplate(tmpPath)
     check ok1
     check c1 == "<p>Hello</p>"
-    check store.hits == 0          # no cache hit in dev mode
+    check store.hits == 0 # no cache hit in dev mode
 
     # Modify file — should be reflected immediately
     writeFile(tmpPath, "<p>Updated</p>")
@@ -35,7 +35,7 @@ suite "JazzyViews File Cache (Tier-1)":
     check ok1
     check c1 == "<p>Hello</p>"
     check store.misses == 1
-    check store.hits   == 0
+    check store.hits == 0
 
     let (c2, ok2) = store.loadTemplate(tmpPath)
     check ok2
@@ -44,7 +44,7 @@ suite "JazzyViews File Cache (Tier-1)":
 
   test "Production mode: stale cache is invalidated on mtime change":
     setEnv("production")
-    discard store.loadTemplate(tmpPath)        # populate cache
+    discard store.loadTemplate(tmpPath) # populate cache
 
     # Simulate file change: write new content and touch mtime
     # Sleep 10ms to ensure OS mtime resolution flips
@@ -83,22 +83,22 @@ suite "JazzyViews Render Cache (Tier-2)":
 
   test "Development mode: getCachedRender always returns miss":
     setEnv("development")
-    store.putCachedRender("/p/v.html", "{}", "<h1>Hi</h1>", ttl = 0)
+    store.putCachedRender("/p/v.html", "{}", "<h1>Hi</h1>", ttl = 0.0)
     let (html, hit) = store.getCachedRender("/p/v.html", "{}")
     check not hit
     check html == ""
 
   test "Production mode: put then get returns hit":
     setEnv("production")
-    store.putCachedRender("/p/v.html", "{}", "<h1>Hi</h1>", ttl = 0)
+    store.putCachedRender("/p/v.html", "{}", "<h1>Hi</h1>", ttl = 0.0)
     let (html, hit) = store.getCachedRender("/p/v.html", "{}")
     check hit
     check html == "<h1>Hi</h1>"
 
   test "Different data keys produce different entries":
     setEnv("production")
-    store.putCachedRender("/p/v.html", """{"user":"Ali"}""",   "<b>Ali</b>",  ttl = 0)
-    store.putCachedRender("/p/v.html", """{"user":"Ayse"}""",  "<b>Ayse</b>", ttl = 0)
+    store.putCachedRender("/p/v.html", """{"user":"Ali"}""", "<b>Ali</b>", ttl = 0.0)
+    store.putCachedRender("/p/v.html", """{"user":"Ayse"}""", "<b>Ayse</b>", ttl = 0.0)
 
     let (h1, ok1) = store.getCachedRender("/p/v.html", """{"user":"Ali"}""")
     let (h2, ok2) = store.getCachedRender("/p/v.html", """{"user":"Ayse"}""")
@@ -108,7 +108,7 @@ suite "JazzyViews Render Cache (Tier-2)":
   test "TTL expiry evicts entry":
     setEnv("production")
     # Put with 1-second TTL
-    store.putCachedRender("/p/v.html", "{}", "<h1>Exp</h1>", ttl = 1)
+    store.putCachedRender("/p/v.html", "{}", "<h1>Exp</h1>", ttl = 1.0)
     let (_, hit1) = store.getCachedRender("/p/v.html", "{}")
     check hit1
 
@@ -120,7 +120,7 @@ suite "JazzyViews Render Cache (Tier-2)":
 
   test "evictCachedRender removes single entry":
     setEnv("production")
-    store.putCachedRender("/p/v.html", "{}", "<h1>X</h1>", ttl = 0)
+    store.putCachedRender("/p/v.html", "{}", "<h1>X</h1>", ttl = 0.0)
     store.evictCachedRender("/p/v.html", "{}")
     let (_, hit) = store.getCachedRender("/p/v.html", "{}")
     check not hit
@@ -130,12 +130,12 @@ suite "JazzyViews Render Cache (Tier-2)":
     let tmpPath = getTempDir() / "jazzy_clear_test.html"
     writeFile(tmpPath, "x")
     discard store.loadTemplate(tmpPath)
-    store.putCachedRender(tmpPath, "{}", "y", ttl = 0)
+    store.putCachedRender(tmpPath, "{}", "y", ttl = 0.0)
 
     store.clearAll()
     let s = store.stats()
     check s.templateEntries == 0
-    check s.renderEntries   == 0
+    check s.renderEntries == 0
     try: removeFile(tmpPath) except CatchableError: discard
 
 suite "JazzyViews Cache Stats":
@@ -146,14 +146,14 @@ suite "JazzyViews Cache Stats":
     let tmpPath = getTempDir() / "jazzy_stats_test.html"
     writeFile(tmpPath, "hello")
 
-    discard store.loadTemplate(tmpPath)  # miss
-    discard store.loadTemplate(tmpPath)  # hit
-    store.putCachedRender(tmpPath, "{}", "y", ttl = 0)
+    discard store.loadTemplate(tmpPath) # miss
+    discard store.loadTemplate(tmpPath) # hit
+    store.putCachedRender(tmpPath, "{}", "y", ttl = 0.0)
 
     let s = store.stats()
     check s.templateEntries == 1
-    check s.renderEntries   == 1
-    check s.hits            == 1
-    check s.misses          == 1
-    check s.enabled         == true
+    check s.renderEntries == 1
+    check s.hits == 1
+    check s.misses == 1
+    check s.enabled == true
     try: removeFile(tmpPath) except CatchableError: discard

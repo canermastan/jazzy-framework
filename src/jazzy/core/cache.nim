@@ -15,18 +15,18 @@ proc newJazzyCache*(): JazzyCache =
 
 var AppCache* = newJazzyCache()
 
-proc put*(c: JazzyCache, key: string, value: string, ttl: int = 3600) =
+proc put*(c: JazzyCache, key: string, value: string, ttl: float = 3600.0) =
   acquire(c.lock)
   try:
-    let expiry = epochTime() + ttl.float
+    let expiry = epochTime() + ttl
     c.data[key] = CacheItem(value: value, expiresAt: expiry)
   finally:
     release(c.lock)
 
-proc put*(c: JazzyCache, key: string, value: JsonNode, ttl: int = 3600) =
+proc put*(c: JazzyCache, key: string, value: JsonNode, ttl: float = 3600.0) =
   c.put(key, $value, ttl)
 
-proc put*(c: JazzyCache, key: string, value: int, ttl: int = 3600) =
+proc put*(c: JazzyCache, key: string, value: int, ttl: float = 3600.0) =
   c.put(key, $value, ttl)
 
 proc get*(c: JazzyCache, key: string, default: string = ""): string =
@@ -96,7 +96,7 @@ proc prune*(c: JazzyCache) =
   for k in keysToRemove:
     c.data.del(k)
 
-proc increment*(c: JazzyCache, key: string, ttl: int = 60): int =
+proc increment*(c: JazzyCache, key: string, ttl: float = 60.0): int =
   ## Atomically increment a numeric value in cache.
   ## If key does not exist, it's initialized to 1 with the given TTL.
   acquire(c.lock)
@@ -116,12 +116,12 @@ proc increment*(c: JazzyCache, key: string, ttl: int = 60): int =
         return 1
     else:
       # Expired, reset
-      let expiry = now + ttl.float
+      let expiry = now + ttl
       c.data[key] = CacheItem(value: "1", expiresAt: expiry)
       return 1
   else:
     # New key
-    let expiry = now + ttl.float
+    let expiry = now + ttl
     c.data[key] = CacheItem(value: "1", expiresAt: expiry)
     return 1
 
