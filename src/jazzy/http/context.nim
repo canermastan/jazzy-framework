@@ -56,6 +56,7 @@ proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
   result.auth.isLoggedIn = false
 
   let authSecret = getConfig("JWT_SECRET", "CHANGE_ME_IN_PROD_SECRET_KEY")
+  result.authSecret = authSecret
 
   # Check for Bearer token (JWT)
   var authToken = ""
@@ -77,33 +78,6 @@ proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
       result.auth.isLoggedIn = true
       result.auth.user = payload
       result.auth.token = authToken
-
-  let ctx = result
-
-  # Setup Login Proc
-  # remember=false → 1h JWT, session cookie (cleared on browser close)
-  # remember=true  → 30-day JWT, persistent cookie (survives browser restarts)
-  result.auth.loginProc = proc(user: JsonNode, remember: bool): string =
-    let col = newJwtManager(authSecret)
-    const sessionLifetime = 3600 # 1 hour
-    const persistentLifetime = 2592000 # 30 days
-    let lifetime = if remember: persistentLifetime else: sessionLifetime
-    let token = col.sign(user, lifetime)
-    ctx.auth.isLoggedIn = true
-    ctx.auth.user = some(user)
-    ctx.auth.token = token
-    let cookieMaxAge = if remember: some(lifetime) else: none(int)
-    ctx.setCookie("auth_token", token, path = "/", httpOnly = true,
-        secure = isProduction(), sameSite = SameSite.Lax, maxAge = cookieMaxAge)
-    return token
-
-  # Setup Logout Proc
-  result.auth.logoutProc = proc() =
-    ctx.auth.isLoggedIn = false
-    ctx.auth.user = none(JsonNode)
-    ctx.auth.token = ""
-    ctx.setCookie("auth_token", "", path = "/", httpOnly = true,
-        secure = isProduction(), sameSite = SameSite.Lax, maxAge = some(0))
 
 proc status*(ctx: Context, code: int): Context {.discardable.} =
   ctx.response.code = code
@@ -259,10 +233,23 @@ proc login*(ctx: Context, user: JsonNode, remember: bool = false): string =
   ## Issues a JWT token and sets an `auth_token` cookie.
   ## - remember=false (default): 1-hour JWT + session cookie (cleared on browser close).
   ## - remember=true: 30-day JWT + persistent cookie (survives browser restarts).
-  ctx.auth.loginProc(user, remember)
+  const sessionLifetime = 3600 # 1 hour
+  const persistentLifetime = 2592000 # 30 days
+  let lifetime = if remember: persistentLifetime else: sessionLifetime
+  result = newJwtManager(ctx.authSecret).sign(user, lifetime)
+  ctx.auth.isLoggedIn = true
+  ctx.auth.user = some(user)
+  ctx.auth.token = result
+  let cookieMaxAge = if remember: some(lifetime) else: none(int)
+  ctx.setCookie("auth_token", result, path = "/", httpOnly = true,
+      secure = isProduction(), sameSite = SameSite.Lax, maxAge = cookieMaxAge)
 
 proc logout*(ctx: Context) =
-  ctx.auth.logoutProc()
+  ctx.auth.isLoggedIn = false
+  ctx.auth.user = none(JsonNode)
+  ctx.auth.token = ""
+  ctx.setCookie("auth_token", "", path = "/", httpOnly = true,
+      secure = isProduction(), sameSite = SameSite.Lax, maxAge = some(0))
 
 proc user*(ctx: Context): Option[JsonNode] =
   ctx.auth.user

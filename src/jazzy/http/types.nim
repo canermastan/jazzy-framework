@@ -6,8 +6,6 @@ type
     user*: Option[JsonNode]
     isLoggedIn*: bool
     token*: string
-    loginProc*: proc(user: JsonNode, remember: bool): string {.gcsafe, closure.}
-    logoutProc*: proc() {.gcsafe, closure.}
 
   JazzyRequest* = ref object
     body*: string
@@ -53,6 +51,7 @@ type
     request*: JazzyRequest
     response*: JazzyResponse
     auth*: AuthManager
+    authSecret*: string
     cache*: JazzyCache
     requestId*: string
     wsHandler*: WsHandlerProc
