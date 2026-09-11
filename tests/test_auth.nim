@@ -180,10 +180,13 @@ suite "Auth System Tests":
     let manager = newJwtManager("s3cr3t")
     let token = manager.sign(%*{"user": "alice"})
 
-    # Change last character of signature
+    # Change the first character of the signature. The final Base64URL
+    # character can contain unused padding bits, so changing it is not always
+    # a cryptographic modification.
     var badToken = token
-    if badToken[^1] == 'a': badToken[^1] = 'b'
-    else: badToken[^1] = 'a'
+    let signatureStart = badToken.rfind('.') + 1
+    if badToken[signatureStart] == 'A': badToken[signatureStart] = 'B'
+    else: badToken[signatureStart] = 'A'
 
     check manager.verify(badToken).isNone()
 
