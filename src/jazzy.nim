@@ -2,13 +2,13 @@ import jazzy/core/[server, app, config, middlewares, cache, logger, version]
 import jazzy/http/[context, types, router, static_files, validation]
 import jazzy/db/[database, builder, schema]
 import jazzy/utils/[json_helpers, json_ext, ip]
-import jazzy/auth/[security, middlewares]
+import jazzy/auth/[security, middlewares, csrf]
 
 export server, app, config, middlewares, cache, bodyLimit, logger, rateLimit, version
 export context, types, router, static_files, validation
 export database, builder, schema
 export json_helpers, json_ext, ip
-export security, middlewares
+export security, middlewares, csrf
 
 import std/[json, asyncdispatch, options, httpcore, tables, strutils]
 export json, asyncdispatch, options, httpcore, tables, strutils

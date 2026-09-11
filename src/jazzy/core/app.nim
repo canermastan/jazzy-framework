@@ -4,6 +4,7 @@ import ../http/static_files as sfiles
 import server, config, logger
 import ../drivers/mummy_driver
 import ../devui/devui
+import ../auth/[csrf, security]
 
 type
   JazzyStatic* = object
@@ -34,11 +35,15 @@ proc wrapMiddleware(mw: Middleware, next: HandlerProc): HandlerProc =
 proc serve*(app: JazzyStatic, port: int, address: string = "0.0.0.0") =
   # Always ensure .env is loaded if present in current directory
   loadEnv(silent = true)
-  
+  for warning in jwtConfigurationWarnings():
+    Log.warn(warning)
+  for warning in csrfConfigurationWarnings():
+    Log.warn(warning)
+
   let env = getAppEnv()
 
-  # Auto-register Dev UI in development mode
-  if isDevelopment():
+  # Dev UI is an explicit development-only opt-in.
+  if devUiEnabled():
     registerDevUi()
 
   var mainHandler: HandlerProc = proc(ctx: Context): Future[void] {.async, gcsafe.} =
@@ -47,6 +52,9 @@ proc serve*(app: JazzyStatic, port: int, address: string = "0.0.0.0") =
   for i in countdown(app.middlewares.len - 1, 0):
     let mw = app.middlewares[i]
     mainHandler = wrapMiddleware(mw, mainHandler)
+
+  if csrfEnabled():
+    mainHandler = wrapMiddleware(csrf(), mainHandler)
 
   # Wrap with request logger (outermost — catches panics, measures total time)
   let appHandler = mainHandler
@@ -82,7 +90,7 @@ proc serve*(app: JazzyStatic, port: int, address: string = "0.0.0.0") =
   # Startup log
   let baseUrl = "http://" & address & ":" & $port
   Log.info("🎷 Jazzy running in " & env & " mode on " & baseUrl)
-  if isDevelopment():
+  if devUiEnabled():
     Log.info("🔧 Dev UI available at " & baseUrl & "/dev-ui")
 
   waitFor app.driver.serve(port, address, mainHandler)

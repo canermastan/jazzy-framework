@@ -1,6 +1,13 @@
 import jazzy
 import std/[json, options]
 
+proc authClaims*(user: JsonNode): JsonNode =
+  ## Returns the only user fields that may be stored in an authentication token.
+  result = %*{
+    "id": user["id"],
+    "username": user["username"]
+  }
+
 proc login*(username, password: string): Option[JsonNode] =
   let user = DB.table("users").where("username", username).first()
   if user.kind != JNull and verifyPassword(password, user["password"].getStr):

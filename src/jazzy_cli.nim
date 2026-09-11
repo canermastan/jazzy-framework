@@ -1,7 +1,7 @@
 ## Jazzy CLI - Project scaffolding tool
 ## Usage: jazzy new <project_name>
 
-import std/[os, strutils, strformat]
+import std/[os, strutils, strformat, sysrand]
 import jazzy/cli/templates
 import jazzy/core/version
 
@@ -10,10 +10,10 @@ const VERSION = JAZZY_VERSION
 const BANNER = """
      ██╗ █████╗ ███████╗███████╗██╗   ██╗
      ██║██╔══██╗╚══███╔╝╚══███╔╝╚██╗ ██╔╝
-     ██║███████║  ███╔╝   ███╔╝  ╚████╔╝ 
-██   ██║██╔══██║ ███╔╝   ███╔╝    ╚██╔╝  
-╚█████╔╝██║  ██║███████╗███████╗   ██║   
- ╚════╝ ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝   
+     ██║███████║  ███╔╝   ███╔╝  ╚████╔╝
+██   ██║██╔══██║ ███╔╝   ███╔╝    ╚██╔╝
+╚█████╔╝██║  ██║███████╗███████╗   ██║
+ ╚════╝ ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝
   Productive web framework for Nim 🎷
 """
 
@@ -33,6 +33,13 @@ proc createFile(path, content: string) =
     createDir(dir)
   writeFile(path, content)
   echo fmt"    ✓ {path}"
+
+proc generateJwtSecret(): string =
+  var bytes: array[32, byte]
+  discard urandom(bytes)
+  for b in bytes:
+    result.add(toHex(int(b), 2))
+  result = result.toLowerAscii()
 
 proc newProject(name: string) =
   if name.len == 0:
@@ -56,7 +63,7 @@ proc newProject(name: string) =
   createFile(name / fmt"{pkgName}.nimble", nimbleTemplate(pkgName))
   createFile(name / "config.nims", configNimsTemplate())
   createFile(name / ".gitignore", gitignoreTemplate())
-  createFile(name / ".env", envTemplate())
+  createFile(name / ".env", envTemplate(generateJwtSecret()))
 
   # Source files
   createFile(name / "src" / "app.nim", appTemplate(pkgName))

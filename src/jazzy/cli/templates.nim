@@ -140,11 +140,16 @@ nimblecache/
 Thumbs.db
 """
 
-proc envTemplate*(): string =
+proc envTemplate*(jwtSecret: string): string =
+  ## The CLI supplies a fresh random signing secret.
   result = """# Application Environment (development | production)
 APP_ENV=development
 LOG_LEVEL=debug
-"""
+# Dev UI can execute SQL and is available only in development.
+DEV_UI_ENABLED=true
+# Enable only for browser forms that use the auth_token cookie.
+CSRF_ENABLED=false
+JWT_SECRET=""" & jwtSecret & "\n"
 
 proc testConfigTemplate*(): string =
   result = """switch("path", "$projectDir/../src")

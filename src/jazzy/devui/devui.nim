@@ -180,8 +180,9 @@ proc serveAlpine*(ctx: Context) {.async.} =
   ctx.response.body = alpineJs
 
 proc registerDevUi*(path: string = "/dev-ui") =
-  if isProduction():
-    Log.warn("Dev UI is disabled in production mode")
+  if not devUiEnabled():
+    Log.warn("Dev UI is disabled. Set APP_ENV=development and " &
+        "DEV_UI_ENABLED=true to enable it locally.")
     return
 
   Route.get(path, serveDevUi)

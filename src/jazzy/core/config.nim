@@ -27,6 +27,11 @@ proc getAllConfigs*(): Table[string, string] =
 
 # --- Environment Helpers ---
 
+proc configEnabled*(key: string, default = false): bool =
+  ## Reads a conventional boolean configuration value.
+  let fallback = if default: "true" else: "false"
+  getConfig(key, fallback).toLowerAscii() in ["1", "true", "on"]
+
 proc getAppEnv*(): string =
   ## Returns current environment (development, production, etc.)
   getConfig("APP_ENV", "development").toLowerAscii()
@@ -39,6 +44,9 @@ proc isProduction*(): bool =
   ## Returns true if APP_ENV is "production"
   getAppEnv() == "production"
 
+proc devUiEnabled*(): bool =
+  ## Dev UI must be explicitly enabled and is never available outside development.
+  isDevelopment() and configEnabled("DEV_UI_ENABLED")
+
 # Auto-load .env if it exists in the current directory (silent)
 loadEnv(silent = true)
-

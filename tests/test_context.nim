@@ -25,6 +25,28 @@ suite "Context Logic Tests":
 
     check ctx.input("name") == "BodyName"
 
+  test "bodyInput() should ignore query parameters":
+    let req = JazzyRequest(
+      queryParams: {"password": "leaked-in-url"}.toTable,
+      headers: newHttpHeaders(),
+      body: """{"password":"BodyPassword"}"""
+    )
+    req.headers["Content-Type"] = "application/json"
+    let ctx = newContext(req)
+
+    check ctx.bodyInput("password") == "BodyPassword"
+
+  test "bodyInput() should support URL-encoded forms":
+    let req = JazzyRequest(
+      headers: newHttpHeaders(),
+      body: "email=ada%40example.com&password=correct+horse"
+    )
+    req.headers["Content-Type"] = "application/x-www-form-urlencoded"
+    let ctx = newContext(req)
+
+    check ctx.bodyInput("email") == "ada@example.com"
+    check ctx.bodyInput("password") == "correct horse"
+
   test "bodyAs[T] should deserialize JSON":
     type TestDto = ref object
       id: int

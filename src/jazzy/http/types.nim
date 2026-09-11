@@ -54,6 +54,7 @@ type
     authSecret*: string
     cache*: JazzyCache
     requestId*: string
+    csrfTokenValue*: string
     wsHandler*: WsHandlerProc
 
   HandlerProc* = proc(ctx: Context): Future[void] {.gcsafe, closure.}

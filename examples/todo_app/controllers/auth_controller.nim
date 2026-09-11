@@ -11,7 +11,7 @@ proc login*(ctx: Context) {.async.} =
   let user = auth_service.login(data["username"].getStr, data[
       "password"].getStr)
   if user.isSome:
-    let token = ctx.login(user.get)
+    let token = ctx.login(authClaims(user.get))
     ctx.json(%*{"token": token})
   else:
     ctx.status(401).json(%*{"error": "Invalid credentials"})

@@ -1,4 +1,5 @@
 import unittest, json, options, httpcore, strutils, base64, os, asyncdispatch
+import nimcrypto/[pbkdf2, hmac, sha2]
 import jazzy/http/[types, context]
 import jazzy/auth/[jwt_manager, security, middlewares]
 
@@ -93,7 +94,7 @@ suite "Auth System Tests":
     let token30d = remCtx3.login(user3, remember = true)
 
     # Token must be verifiable immediately (30-day lifetime)
-    let manager = newJwtManager("CHANGE_ME_IN_PROD_SECRET_KEY")
+    let manager = newJwtManager(remCtx3.authSecret)
     let payload = manager.verify(token30d)
     check payload.isSome()
 
@@ -106,7 +107,7 @@ suite "Auth System Tests":
     check ctx2.user.isNone()
 
   test "Expired token should not authenticate":
-    let manager = newJwtManager("CHANGE_ME_IN_PROD_SECRET_KEY")
+    let manager = newJwtManager(DefaultJwtSecret)
     let user = %*{"id": 1}
     let token = manager.sign(user, -3600) # Expired 1 hour ago
 
@@ -124,6 +125,8 @@ suite "Auth System Tests":
     check hash1 != hash2
     check verifyPassword(password, hash1)
     check verifyPassword(password, hash2)
+    check hash1.startsWith("pbkdf2-sha256$" & $PasswordHashIterations & "$")
+    check not passwordHashNeedsRehash(hash1)
 
   test "Verify wrong password fails":
     let hash = hashPassword("secret")
@@ -137,8 +140,20 @@ suite "Auth System Tests":
 
     let hash2 = hashPassword(password)
     let parts = hash2.split('$')
-    let tampered = "ABC" & parts[0][3..^1] & "$" & parts[1]
+    let tampered = parts[0] & "$" & parts[1] & "$ABC" &
+        parts[2][3..^1] & "$" & parts[3]
     check verifyPassword(password, tampered) == false
+
+  test "Legacy password hashes request rehash":
+    let salt = encode("0123456789abcdef")
+    var derivedKey: array[32, byte]
+    var cryptoCtx: HMAC[sha256]
+    discard pbkdf2(cryptoCtx, "legacy-password", decode(salt), 10_000,
+        derivedKey)
+    let legacy = salt & "$" & encode(derivedKey)
+
+    check passwordHashNeedsRehash(legacy)
+    check verifyPassword("legacy-password", legacy)
 
   test "JWT Roundtrip with complex types":
     let manager = newJwtManager("s3cr3t")

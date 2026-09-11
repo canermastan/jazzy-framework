@@ -3,7 +3,7 @@ import std/[json, httpcore, tables, strutils, options, net, sysrand, os, uri,
 import types, validation
 import ../core/[cache, config]
 import ../utils/[json_helpers, ip]
-import ../auth/jwt_manager
+import ../auth/[jwt_manager, security]
 import ../views/engine
 import ../views/cache as viewcache
 
@@ -55,7 +55,7 @@ proc newContext*(req: JazzyRequest): Context {.gcsafe.} =
   result.auth = new(AuthManager)
   result.auth.isLoggedIn = false
 
-  let authSecret = getConfig("JWT_SECRET", "CHANGE_ME_IN_PROD_SECRET_KEY")
+  let authSecret = jwtSigningSecret()
   result.authSecret = authSecret
 
   # Check for Bearer token (JWT)
@@ -180,19 +180,11 @@ proc renderCached*(ctx: Context, viewName: string,
   except Exception as e:
     ctx.status(500).text("View render error: " & e.msg)
 
-proc input*(ctx: Context, key: string, default = ""): string =
-  # Priority:
-  # 1. Query Parameters
-  # 2. JSON Body (if application/json)
-  # 3. Form Body (if application/x-www-form-urlencoded)
-
-  # 1. Check Query Params
-  if ctx.request.queryParams.hasKey(key):
-    return ctx.request.queryParams[key]
-
+proc bodyInput*(ctx: Context, key: string, default = ""): string =
+  ## Reads a value only from a JSON or URL-encoded request body.
+  ## Use this for credentials and other values that must never appear in URLs.
   let ct = ctx.request.headers.getOrDefault("Content-Type")
 
-  # 2. Check JSON Body
   if ct.contains("application/json"):
     try:
       if ctx.request.body.len > 0:
@@ -202,7 +194,6 @@ proc input*(ctx: Context, key: string, default = ""): string =
     except Exception:
       discard
 
-  # 3. Check Form Body (URL Encoded)
   elif ct.contains("application/x-www-form-urlencoded"):
     if ctx.request.body.len > 0:
       for pair in ctx.request.body.split('&'):
@@ -214,6 +205,13 @@ proc input*(ctx: Context, key: string, default = ""): string =
             return decodeUrl(kv[1].replace("+", " "))
 
   return default
+
+proc input*(ctx: Context, key: string, default = ""): string =
+  ## Reads a value from query parameters, JSON, or URL-encoded form data.
+  ## Do not use this for credentials; use `bodyInput` instead.
+  if ctx.request.queryParams.hasKey(key):
+    return ctx.request.queryParams[key]
+  ctx.bodyInput(key, default)
 
 proc param*(ctx: Context, key: string, default: string = ""): string =
   ## Access route parameters (e.g., /users/:id -> ctx.param("id"))
