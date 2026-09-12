@@ -115,6 +115,10 @@ proc render*(ctx: Context, viewName: string, data: JsonNode = newJObject()) =
   if ctx.auth.isLoggedIn and ctx.auth.user.isSome:
     globals["user"] = ctx.auth.user.get
 
+  let csrfCookie = ctx.getCookie("csrf_token")
+  if csrfCookie.len > 0:
+    globals["csrf_token"] = %*csrfCookie
+
   var content: string
   var ok: bool
   {.cast(gcsafe).}:
@@ -151,6 +155,10 @@ proc renderCached*(ctx: Context, viewName: string,
   var globals = newJObject()
   if ctx.auth.isLoggedIn and ctx.auth.user.isSome:
     globals["user"] = ctx.auth.user.get
+
+  let csrfCookie = ctx.getCookie("csrf_token")
+  if csrfCookie.len > 0:
+    globals["csrf_token"] = %*csrfCookie
 
   let dataRepr = $data
 

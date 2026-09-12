@@ -65,7 +65,7 @@ The `ctx` object is the primary interface for handlers:
 - **Params**: `ctx.param("id")` (URL parameters).
 - **Validation**: `let data = ctx.validate(%*{"email": "required|email"})` (Throws 422 on failure).
 - **Response**: `ctx.json(node)`, `ctx.text(str)`, `ctx.html(html)`, `ctx.status(404)`.
-- **Auth**: `ctx.login(userNode)`, `ctx.logout()`, `ctx.check()` (bool), `ctx.user()` (Option).
+- **Auth**: `ctx.login(userNode)`, `ctx.loginWithRefresh(user, refreshToken)`, `ctx.getRefreshToken()`, `ctx.logout()`, `ctx.check()` (bool), `ctx.user()` (Option).
 - **IP**: `ctx.ip()` (Respects `TRUST_PROXY`).
 
 ---
@@ -85,6 +85,7 @@ ctx.renderCached("landing", %*{"data": "static"}, ttl=3600)
 
 ### Syntax & Features
 - **Variables**: `{{ $var }}` (Escaped) / `{!! $var !!}` (Raw/Unescaped).
+- **CSRF Token**: `{{ $csrf_token }}` (Automatically injected to view globals if CSRF is enabled). Example: `<input type="hidden" name="_csrf" value="{{ $csrf_token }}">`
 - **Control Flow**: `@if(cond) ... @else ... @endif`
 - **Loops**: `@foreach(items as item) ... @endforeach`
 - **Layouts**: 
