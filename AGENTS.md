@@ -101,9 +101,11 @@ ctx.renderCached("landing", %*{"data": "static"}, ttl=3600)
 
 ## 🗄 Database (Query Builder, Migrations & ORM)
 Jazzy has an await-first query builder for **SQLite** and **PostgreSQL**.
-Every database operation returns a `Future` and must use `await` inside an
-async handler, or `waitFor` during startup. Do not introduce `getAsync`-style
-method names: `await DB.table(...).get()` is the public DX.
+Every database query returns a `Future` and must use `await` inside an async
+handler, or `waitFor` during startup. `DB.transaction:` is the one block-form
+exception: it awaits its transaction internally, while the queries in the
+block still use `await`. Do not introduce `getAsync`-style method names:
+`await DB.table(...).get()` is the public DX.
 
 ### Configuration
 
@@ -158,6 +160,24 @@ Builder identifiers are validated and SQL-quoted, so reserved names such as
 `order` work. PostgreSQL builder parameters are type-aware from table metadata:
 string route parameters work for `BIGINT`, UUID, boolean, JSONB, and timestamp
 columns without app-level casts.
+
+### Transactions
+
+Use `DB.transaction:` when multiple writes must either all succeed or all be
+rolled back. The transaction block awaits its driver work internally, while
+each query in the block remains explicitly awaited:
+
+```nim
+DB.transaction:
+  let orderId = await DB.table("orders").insert(%*{"status": "pending"})
+  discard await DB.table("payments").insert(%*{"order_id": orderId})
+```
+
+SQLite pins its locked shared connection; PostgreSQL pins one pooled connection
+for the whole block. A `CatchableError` rolls back and is re-raised. Keep the
+block database-only and short: do not await HTTP, file, or other long-running
+work inside it. Nested transactions are intentionally rejected for now rather
+than silently creating unexpected transaction boundaries.
 
 ### Raw SQL
 
@@ -325,7 +345,9 @@ nim c -r --path:src tests/test_postgres_builder.nim
 
 Run `tests/test_postgres_migrations.nim` with the same DSN to verify pinned
 PostgreSQL migration transactions. `tests/test_orm_and_migrations.nim` covers
-the SQLite migration runner and single-block ORM API.
+the SQLite migration runner, single-block ORM API, and public transaction
+blocks. `tests/test_postgres_transactions.nim` verifies public transaction
+commit/rollback behavior against a real PostgreSQL server.
 `tests/test_postgres_orm.nim` verifies mapped/nullable models and eager
 relations, has-one, nested loading, and pivot writes against a real PostgreSQL
 server when `JAZZY_POSTGRES_TEST_DSN` is set.

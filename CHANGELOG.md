@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-09-18
+
+### Added
+- **Public Database Transactions**: Use `DB.transaction:` to run related
+  SQLite or PostgreSQL operations atomically. The block commits on success and
+  rolls back if its code raises an error.
+- **Transaction Safety Tests**: Added SQLite, GC-safe request-handler, and
+  real PostgreSQL integration coverage for commit, rollback, and nested
+  transaction behavior.
+
+### Notes
+- Transaction blocks must stay short and database-only. Nested transactions
+  are rejected until savepoint semantics are introduced.
+
 ## [0.4.0] - 2026-06-21
 
 ### 🚀 Added

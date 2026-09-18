@@ -89,6 +89,41 @@ proc dropLegacyColumnDown(): Future[void] {.async.} =
     .addString("legacy_note", nullable = true)
     .execute()
 
+proc exerciseSqliteTransactions(): Future[int64] {.async.} =
+  DB.transaction:
+    discard await DB.table("transaction_test_entries").insert(%*{
+      "name": "first"
+    })
+    discard await DB.table("transaction_test_entries").insert(%*{
+      "name": "second"
+    })
+
+  try:
+    DB.transaction:
+      discard await DB.table("transaction_test_entries").insert(%*{
+        "name": "must be rolled back"
+      })
+      raise newException(ValueError, "intentional transaction rollback")
+    raise newException(AssertionDefect, "transaction should have failed")
+  except ValueError:
+    discard
+
+  var createdId: int64
+  DB.transaction:
+    createdId = await DB.table("transaction_test_entries").insert(%*{
+      "name": "returned from transaction"
+    })
+  return createdId
+
+proc exerciseNestedSqliteTransaction(): Future[void] {.async.} =
+  DB.transaction:
+    DB.transaction:
+      discard
+
+proc exerciseGcsafeSqliteTransaction(): Future[void] {.async, gcsafe.} =
+  DB.transaction:
+    discard await DB.rawExec("SELECT 1")
+
 suite "Jazzy migrations and ORM":
   setup:
     connectDB(":memory:")
@@ -145,6 +180,27 @@ suite "Jazzy migrations and ORM":
     let rows = waitFor DB.raw("SELECT message FROM seed_audit")
     check rows.len == 1
     check rows[0]["message"].getStr() == "seeded"
+
+  test "commits and rolls back public transaction blocks":
+    discard waitFor DB.rawExec("""
+      CREATE TABLE transaction_test_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL
+      )
+    """)
+
+    let createdId = waitFor exerciseSqliteTransactions()
+    check createdId > 0
+    check (waitFor DB.table("transaction_test_entries").count()) == 3
+    check (waitFor DB.table("transaction_test_entries")
+      .where("name", "must be rolled back").count()) == 0
+
+  test "rejects nested transactions instead of silently changing boundaries":
+    expect ValueError:
+      waitFor exerciseNestedSqliteTransaction()
+
+  test "works from GC-safe async request code":
+    waitFor exerciseGcsafeSqliteTransaction()
 
   test "maps a single-block model to awaited CRUD":
     discard waitFor migrate(@[jazzyMigration])

@@ -61,9 +61,50 @@ type
     query: QueryBuilder
     columns: seq[string]
 
+  TransactionProc = proc(): Future[void]
+
 var
   DB*: DatabaseHelper
   columnCache {.threadvar.}: Table[string, seq[ColumnInfo]]
+
+proc runTransaction(body: TransactionProc): Future[void] {.async, gcsafe.} =
+  ## Dispatch a transaction to the configured driver. The driver primitives
+  ## pin the SQLite connection or one PostgreSQL pool connection for the
+  ## lifetime of `body`, so ordinary DB/ORM calls stay inside the transaction.
+  # Configuration runs once before request work and owns the shared SQLite
+  # handle / worker-local PostgreSQL setup. Its global state is not inferable
+  # as GC-safe by Nim, but it is guarded by Jazzy's initialization rules.
+  {.cast(gcsafe).}:
+    ensureDatabaseConfigured()
+  case databaseDriver()
+  of dbSqlite:
+    # SQLite uses Jazzy's process-local locked connection. The transaction
+    # never crosses an OS worker thread.
+    {.cast(gcsafe).}:
+      await withSqliteTransaction(body)
+  of dbPostgres:
+    let postgres = await postgresForCurrentWorker()
+    # The PostgreSQL adapter owns one pool per Mummy worker and pins one
+    # connection in thread-local storage for this block. async-postgres cannot
+    # infer that ownership through its asyncdispatch internals.
+    {.cast(gcsafe).}:
+      await postgres.withPostgresTransaction(body)
+  of dbMySql:
+    raise newException(ValueError,
+      "MySQL/MariaDB support is not available yet")
+
+template transaction*(db: DatabaseHelper, body: untyped): untyped =
+  ## Laravel-like transaction block syntax for async request handlers:
+  ##
+  ##   DB.transaction:
+  ##     discard await DB.table("orders").insert(%*{"status": "pending"})
+  ##
+  ## The template awaits the driver transaction internally. Every database
+  ## operation inside the block remains explicitly awaited. Assign a value to
+  ## a variable declared outside the block when the caller needs its result.
+  await runTransaction(proc(): Future[void] {.async.} =
+    body)
+
 
 proc sanitizeIdentifier*(name: string): string =
   ## Jazzy identifiers are simple, lower-case SQL identifiers.  Restricting
