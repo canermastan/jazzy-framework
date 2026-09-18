@@ -5,15 +5,10 @@ import ../models/todo
 proc todoJson(todo: Todo): JsonNode =
   modelData(todo)
 
-proc todosJson(todos: openArray[Todo]): JsonNode =
-  result = newJArray()
-  for todo in todos:
-    result.add(todoJson(todo))
-
 # GET /todos
 proc list*(ctx: Context) {.async.} =
   let todos = await todo_service.getAllTodos()
-  ctx.json(todosJson(todos))
+  ctx.json(modelData(todos))
 
 # GET /todos/:id
 proc show*(ctx: Context) {.async.} =

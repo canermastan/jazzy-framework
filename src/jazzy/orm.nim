@@ -459,6 +459,12 @@ proc compileModel(typeName, definition: NimNode): NimNode {.compileTime.} =
   for field in fields:
     source.add("  result[\"" & field.column & "\"] = ormToJson(value." & field.name & ")\n")
 
+  source.add("proc modelData*(values: seq[" & modelName & "]): JsonNode =\n")
+  source.add("  ## Serializes a model collection for ctx.json(...).\n")
+  source.add("  result = newJArray()\n")
+  source.add("  for value in values:\n")
+  source.add("    result.add(modelData(value))\n")
+
   source.add("proc modelCachedRow*(value: " & modelName & "): JsonNode =\n")
   source.add("  result = modelData(value)\n")
   source.add("  let relationData = emptyModelJson()\n")

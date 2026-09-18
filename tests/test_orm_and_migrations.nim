@@ -170,6 +170,20 @@ suite "Jazzy migrations and ORM":
     check (waitFor OrmUser.delete(created.id)) == 1
     check (waitFor OrmUser.all()).len == 0
 
+  test "serializes one model or a model collection for JSON responses":
+    let one = OrmUser(name: "Ada", active: true)
+    let oneJson = modelData(one)
+    check oneJson["name"].getStr() == "Ada"
+    check oneJson["active"].getBool()
+
+    let manyJson = modelData(@[
+      one,
+      OrmUser(name: "Lin", active: false)
+    ])
+    check manyJson.kind == JArray
+    check manyJson.len == 2
+    check manyJson[1]["name"].getStr() == "Lin"
+
   test "supports nullable fields, mapped columns, custom keys, and patches":
     discard waitFor DB.rawExec("""
       CREATE TABLE orm_accounts (

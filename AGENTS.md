@@ -265,6 +265,8 @@ Models support nullable scalar `Option[T]` fields, `column = "..."` mapping,
 and `primaryKey = true` on a custom key. `patch()` rejects custom keys and
 managed timestamps, preventing accidental identity changes. `find()`/`first()`,
 `update()`, and `patch(id, ...)` return `Option[T]`.
+`modelData(value)` serializes one model, while `modelData(models)` serializes
+the `seq[Model]` returned by `get()` directly for `ctx.json()`.
 
 Relations are declared in the same block with explicit keys:
 
