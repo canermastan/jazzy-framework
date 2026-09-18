@@ -1,5 +1,4 @@
 import jazzy
-import ../services/todo_service
 import ../services/auth_service
 
 proc login*(ctx: Context) {.async.} =
@@ -8,7 +7,7 @@ proc login*(ctx: Context) {.async.} =
     "password": "required|min:4"
   })
 
-  let user = auth_service.login(data["username"].getStr, data[
+  let user = await auth_service.login(data["username"].getStr, data[
       "password"].getStr)
   if user.isSome:
     let token = ctx.login(authClaims(user.get))
@@ -22,9 +21,9 @@ proc register*(ctx: Context) {.async.} =
     "password": "required|min:6"
   })
 
-  let id = auth_service.register(data["username"].getStr, data[
+  let id = await auth_service.register(data["username"].getStr, data[
       "password"].getStr)
-  ctx.json(%*{"message": "User registered successfully"})
+  ctx.status(201).json(%*{"id": id, "message": "User registered successfully"})
 
 proc me*(ctx: Context) {.async.} =
   let u = ctx.user

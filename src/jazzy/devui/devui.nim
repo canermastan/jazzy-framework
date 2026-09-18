@@ -50,7 +50,7 @@ proc getDbDataApi*(ctx: Context) {.async.} =
     return
 
   try:
-    let data = DB.table(tableName).limit(50).get()
+    let data = await DB.table(tableName).limit(50).get()
     ctx.json(data)
   except Exception as e:
     ctx.status(500).json(%*{"error": e.msg})
@@ -90,37 +90,11 @@ proc postDbQueryApi*(ctx: Context) {.async.} =
     return
 
   try:
-    withDB:
-      let conn = getConn()
-      let upperSql = sql.toUpperAscii().strip()
-
-      if upperSql.startsWith("SELECT") or upperSql.startsWith("PRAGMA"):
-        var results = newJArray()
-
-        # Try to extract column names for simple "SELECT ... FROM table" queries
-        var colNames: seq[string] = @[]
-        let fromIdx = upperSql.find("FROM ")
-        if fromIdx >= 0:
-          let afterFrom = sql.strip()[fromIdx + 5 .. ^1].strip()
-          let tableEnd = afterFrom.find({' ', ';', '\n', '\r'})
-          let guessedTable = if tableEnd > 0: afterFrom[0 ..< tableEnd]
-                             else: afterFrom
-          try:
-            colNames = getColumns(sanitizeIdentifier(guessedTable))
-          except:
-            discard
-
-        for row in conn.iterate(sql):
-          var obj = newJObject()
-          for i in 0 ..< row.len:
-            let colName = if i < colNames.len: colNames[i]
-                          else: "col_" & $i
-            obj[colName] = valToJson(row[i])
-          results.add(obj)
-        ctx.json(%*{"type": "data", "data": results})
-      else:
-        conn.exec(sql)
-        ctx.json(%*{"type": "exec", "affected": conn.changes()})
+    let upperSql = sql.toUpperAscii().strip()
+    if upperSql.startsWith("SELECT") or upperSql.startsWith("PRAGMA"):
+      ctx.json(%*{"type": "data", "data": await DB.raw(sql)})
+    else:
+      ctx.json(%*{"type": "exec", "affected": await DB.rawExec(sql)})
   except Exception as e:
     ctx.status(500).json(%*{"error": e.msg})
 

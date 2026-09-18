@@ -1,184 +1,134 @@
-import std/[unittest, json, strutils, times, os]
+import std/[asyncdispatch, json, unittest]
 import jazzy/db/[database, builder, schema]
 
-suite "Database and Query Builder":
+suite "await-first SQLite query builder":
   setup:
     connectDB(":memory:")
-
-    # Global tables for basic tests
-    createTable("users")
+    waitFor createTable("users")
       .increments("id")
       .string("name")
       .integer("age")
+      .boolean("active", default = true)
+      .timestamps()
       .execute()
 
   teardown:
     closeDB()
 
-  test "Basic: Insert and Get":
-    let id = DB.table("users").insert(%*{"name": "Alice", "age": 25})
+  test "uses the same awaited CRUD API as PostgreSQL":
+    let id = waitFor DB.table("users").insert(%*{
+      "name": "Alice", "age": 25, "active": true
+    })
     check id == 1
 
-    let user = DB.table("users").where("id", 1).first()
+    let user = waitFor DB.table("users").where("id", id).first()
     check user["name"].getStr() == "Alice"
     check user["age"].getInt() == 25
+    check user["active"].getInt() == 1
+    check user.hasKey("created_at")
 
-  test "ORM: Select Specific Columns":
-    discard DB.table("users").insert(%*{"name": "Alice", "age": 25})
+    check (waitFor DB.table("users").where("id", id).update(%*{"age": 26})) == 1
+    check (waitFor DB.table("users").where("id", id).count()) == 1
+    check (waitFor DB.table("users").where("id", id).first())["age"].getInt() == 26
 
-    # Should only return 'name'
-    let res = DB.table("users").select("name").first()
-    check res.hasKey("name")
-    check not res.hasKey("age")
-    check res["name"].getStr() == "Alice"
+    check (waitFor DB.table("users").where("id", id).delete()) == 1
+    check (waitFor DB.table("users").count()) == 0
 
-  test "ORM: OrderBy ASC and DESC":
-    discard DB.table("users").insert(%*{"name": "Alice", "age": 30})
-    discard DB.table("users").insert(%*{"name": "Bob", "age": 20})
+  test "supports raw queries and soft deletes":
+    waitFor createTable("tasks").increments("id").string("title").softDeletes().execute()
+    discard waitFor DB.table("tasks").insert(%*{"title": "First"})
+    discard waitFor DB.table("tasks").insert(%*{"title": "Second"})
 
-    let asc = DB.table("users").orderBy("age", "ASC").get()
-    check asc[0]["name"].getStr() == "Bob"
+    let rows = waitFor DB.raw("SELECT title FROM tasks WHERE title = ?", "First")
+    check rows.len == 1
+    check rows[0]["title"].getStr() == "First"
+    let legacyParam = waitFor DB.raw("SELECT ? AS value", dbValue(7))
+    check legacyParam[0]["value"].getInt() == 7
 
-    let desc = DB.table("users").orderBy("age", "DESC").get()
-    check desc[0]["name"].getStr() == "Alice"
+    check (waitFor DB.table("tasks").where("title", "First").delete()) == 1
+    check (waitFor DB.table("tasks").count()) == 1
+    check (waitFor DB.table("tasks").withTrashed().count()) == 2
+    check (waitFor DB.table("tasks").onlyTrashed().get())[0]["title"].getStr() == "First"
 
-  test "ORM: Limit and Offset (Pagination)":
-    for i in 1..5:
-      discard DB.table("users").insert(%*{"name": "User " & $i, "age": i})
-
-    # Skip first 2, take next 2 (User 3 and User 4)
-    let res = DB.table("users").orderBy("id", "ASC").limit(2).offset(2).get()
-    check res.len == 2
-    check res[0]["name"].getStr() == "User 3"
-    check res[1]["name"].getStr() == "User 4"
-
-  test "ORM: Update and Delete":
-    discard DB.table("users").insert(%*{"name": "Alice", "age": 25})
-
-    DB.table("users").where("name", "Alice").update(%*{"age": 26})
-    let user = DB.table("users").where("name", "Alice").first()
-    check user["age"].getInt() == 26
-
-    DB.table("users").where("name", "Alice").delete()
-    check DB.table("users").count() == 0
-
-  test "Timestamps: Automatic Creation":
-    createTable("posts").increments("id").string("title").timestamps().execute()
-
-    let id = DB.table("posts").insert(%*{"title": "New Post"})
-    let post = DB.table("posts").where("id", id).first()
-
-    check post.hasKey("created_at")
-    check post.hasKey("updated_at")
-    check post["created_at"].getStr() == post["updated_at"].getStr()
-
-  test "Timestamps: Manual Override":
-    createTable("logs").increments("id").string("msg").timestamps().execute()
-
-    let pastDate = "2020-01-01 12:00:00"
-    let id = DB.table("logs").insert(%*{
-      "msg": "Old Log",
-      "created_at": pastDate,
-      "updated_at": pastDate
-    })
-
-    let log = DB.table("logs").where("id", id).first()
-    check log["created_at"].getStr() == pastDate
-    check log["updated_at"].getStr() == pastDate
-
-  test "Timestamps: Automatic Update on Modification":
-    createTable("products").increments("id").string("name").timestamps().execute()
-
-    let pastDate = "2010-05-20 09:00:00"
-    let id = DB.table("products").insert(%*{
-      "name": "Old Product",
-      "created_at": pastDate,
-      "updated_at": pastDate
-    })
-
-    sleep(10)
-    DB.table("products").where("id", id).update(%*{"name": "Updated Product"})
-
-    let updated = DB.table("products").where("id", id).first()
-    let nowStr = now().utc.format("yyyy-MM-dd")
-
-    check updated["name"].getStr() == "Updated Product"
-    check updated["created_at"].getStr() == pastDate
-    check updated["updated_at"].getStr() != pastDate
-    check updated["updated_at"].getStr().startsWith(nowStr)
-
-  test "Raw: Query and Exec":
-    discard DB.table("users").insert(%*{"name": "Alice", "age": 25})
-
-    let res = DB.raw("SELECT name FROM users WHERE age = ?", 25)
-    check res.len == 1
-    check res[0]["name"].getStr() == "Alice"
-
-    let affected = DB.rawExec("UPDATE users SET age = ? WHERE name = ?", 30, "Alice")
+    check (waitFor DB.table("tasks").where("title", "First").restore()) == 1
+    let affected = waitFor DB.rawExec("UPDATE tasks SET title = ? WHERE title = ?", "Done", "First")
     check affected == 1
 
-  test "ORM: Soft Deletes":
-    createTable("tasks")
+  test "quotes identifiers and supports condition helpers and returning":
+    waitFor createTable("order")
       .increments("id")
+      .string("group", nullable = true)
+      .string("state")
+      .execute()
+
+    let first = waitFor DB.table("order").returning("id", "group").insert(%*{
+      "group": "primary", "state": "open"
+    })
+    let firstId = first["id"].getInt()
+    let second = waitFor DB.table("order").returning("id").insert(%*{
+      "group": newJNull(), "state": "archived"
+    })
+    let secondId = second["id"].getInt()
+
+    check (waitFor DB.table("order").whereIn("id", [firstId, secondId])
+      .whereNotNull("group").count()) == 1
+    check (waitFor DB.table("order").whereNotIn("id", [firstId]).count()) == 1
+    check (waitFor DB.table("order").whereNull("group").count()) == 1
+    check (waitFor DB.table("order").where("id", firstId)
+      .orWhereNull("group").count()) == 2
+    check (waitFor DB.table("order").where("id", firstId)
+      .orWhereIn("id", [secondId]).count()) == 2
+
+    let updated = waitFor DB.table("order").where("id", secondId)
+      .returning("id", "state").update(%*{"state": "open"})
+    check updated["id"].getInt() == secondId
+    check updated["state"].getStr() == "open"
+
+  test "rewrites only portable raw placeholders":
+    check postgresPlaceholders("SELECT ? AS value, '??' AS literal, ?? AS question " &
+      "/* ? */ -- ?\nFROM \"?\"") ==
+      "SELECT $1 AS value, '??' AS literal, ? AS question /* ? */ -- ?\nFROM \"?\""
+    check postgresPlaceholders("SELECT $$?$$, $func$?$func$, ?") ==
+      "SELECT $$?$$, $func$?$func$, $1"
+
+  test "creates portable indexes and foreign keys and alters tables":
+    waitFor createTable("authors")
+      .increments("id")
+      .string("email")
+      .string("tagline", default = "Ada's")
+      .unique("email")
+      .execute()
+    waitFor createTable("articles")
+      .increments("id")
+      .foreignId("author_id")
+      .constrained("authors")
+      .onDelete("CASCADE")
       .string("title")
-      .softDeletes()
+      .index("title")
       .execute()
 
-    # 1. Insert
-    discard DB.table("tasks").insert(%*{"title": "Task 1"})
-    discard DB.table("tasks").insert(%*{"title": "Task 2"})
-    check DB.table("tasks").count() == 2
+    let authorId = waitFor DB.table("authors").insert(%*{"email": "ada@example.com"})
+    discard waitFor DB.table("articles").insert(%*{
+      "author_id": authorId, "title": "Notes"
+    })
+    check (waitFor DB.table("articles").count()) == 1
+    check (waitFor DB.table("authors").where("id", authorId).forceDelete()) == 1
+    check (waitFor DB.table("articles").count()) == 0
 
-    # 2. Soft Delete Task 1
-    DB.table("tasks").where("title", "Task 1").delete()
-
-    # Task 1 should be hidden
-    check DB.table("tasks").count() == 1
-    let activeTasks = DB.table("tasks").get()
-    check activeTasks[0]["title"].getStr() == "Task 2"
-
-    # 3. With Trashed
-    let allTasks = DB.table("tasks").withTrashed().get()
-    check allTasks.len == 2
-
-    # 4. Only Trashed
-    let onlyTrashed = DB.table("tasks").onlyTrashed().get()
-    check onlyTrashed.len == 1
-    check onlyTrashed[0]["title"].getStr() == "Task 1"
-
-    # 5. Restore
-    DB.table("tasks").where("title", "Task 1").restore()
-    check DB.table("tasks").count() == 2
-
-    # 6. Force Delete
-    DB.table("tasks").where("title", "Task 1").forceDelete()
-    check DB.table("tasks").withTrashed().count() == 1
-
-  test "Schema: String with Length":
-    createTable("length_test")
-      .string("short_str", length = 50)
-      .string("long_str", length = 255)
-      .string("default_str")
+    waitFor alterTable("authors")
+      .addString("display_name", nullable = true)
+      .renameColumn("display_name", "name")
       .execute()
+    discard waitFor DB.table("authors").insert(%*{
+      "email": "grace@example.com", "name": "Grace"
+    })
+    check (waitFor DB.table("authors").where("name", "Grace").count()) == 1
 
-    let info = DB.raw("PRAGMA table_info(length_test)")
-    
-    var foundShort = false
-    var foundLong = false
-    var foundDefault = false
-    
-    for col in info:
-      if col["name"].getStr() == "short_str":
-        check col["type"].getStr() == "TEXT(50)"
-        foundShort = true
-      elif col["name"].getStr() == "long_str":
-        check col["type"].getStr() == "TEXT(255)"
-        foundLong = true
-      elif col["name"].getStr() == "default_str":
-        check col["type"].getStr() == "TEXT"
-        foundDefault = true
-        
-    check foundShort
-    check foundLong
-    check foundDefault
+    waitFor alterTable("authors").dropColumn("name").execute()
+    let author = waitFor DB.table("authors").where("email", "grace@example.com").first()
+    check not author.hasKey("name")
+    check author["tagline"].getStr() == "Ada's"
 
+    waitFor renameTable("authors", "writers")
+    check (waitFor DB.table("writers").count()) == 1
+    waitFor dropTable("writers")

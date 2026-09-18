@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jazzy-postgres-example
+    environment:
+      POSTGRES_USER: jazzy
+      POSTGRES_PASSWORD: jazzy_dev_password
+      POSTGRES_DB: jazzy_example
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jazzy -d jazzy_example"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - jazzy_postgres_example_data:/var/lib/postgresql/data
+
+volumes:
+  jazzy_postgres_example_data:
