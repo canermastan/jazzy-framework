@@ -158,7 +158,7 @@ suite "Jazzy migrations and ORM":
     check found.isSome
     check found.get().name == "Ada"
 
-    let users = waitFor OrmUser.where("active", true).orderBy("id", "DESC").get()
+    let users = waitFor OrmUser.orderBy("id", "DESC").where("active", true).get()
     check users.len == 1
     check users[0].id == created.id
 

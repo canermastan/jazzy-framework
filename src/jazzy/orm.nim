@@ -1022,6 +1022,27 @@ proc whereNotIn*[T, V](model: typedesc[T], column: string,
   result = model.query()
   discard result.builder.whereNotIn(modelColumnName(model, column), values)
 
+proc orderBy*[T](model: typedesc[T], column: string,
+    direction = "ASC"): ModelQuery[T] =
+  ## Start a typed query with an ordering, e.g. ``User.orderBy("id", "DESC")``.
+  model.query().orderBy(column, direction)
+
+proc limit*[T](model: typedesc[T], value: int): ModelQuery[T] =
+  ## Start a typed query with a result limit.
+  model.query().limit(value)
+
+proc offset*[T](model: typedesc[T], value: int): ModelQuery[T] =
+  ## Start a typed query with a result offset.
+  model.query().offset(value)
+
+proc withTrashed*[T](model: typedesc[T]): ModelQuery[T] =
+  ## Start a typed query which includes soft-deleted records.
+  model.query().withTrashed()
+
+proc onlyTrashed*[T](model: typedesc[T]): ModelQuery[T] =
+  ## Start a typed query containing only soft-deleted records.
+  model.query().onlyTrashed()
+
 proc where*[T, V](query: ModelQuery[T], column: string, value: V): ModelQuery[T] =
   mixin modelColumnName
   discard query.builder.where(modelColumnName(T, column), value)

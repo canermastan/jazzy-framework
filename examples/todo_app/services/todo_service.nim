@@ -2,7 +2,7 @@ import jazzy
 import ../models/todo
 
 proc getAllTodos*(): Future[seq[Todo]] {.async.} =
-  await Todo.query().orderBy("id", "DESC").get()
+  await Todo.orderBy("id", "DESC").get()
 
 proc getTodo*(id: int64): Future[Option[Todo]] {.async.} =
   await Todo.find(id)
