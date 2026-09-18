@@ -1,5 +1,6 @@
 import std/[os, strutils, times, unittest]
 import jazzy/cli/[migrations, scaffolding, templates]
+import jazzy_cli
 
 suite "CLI Security Scaffold":
 
@@ -10,6 +11,35 @@ suite "CLI Security Scaffold":
     check env.contains("CSRF_ENABLED=false")
     check env.contains("APP_ENV=development")
     check env.contains("DEV_UI_ENABLED=true")
+
+  test "new applications include an AI agent guide with Jazzy conventions":
+    let guide = agentsTemplate()
+    check guide.contains("# Jazzy Application Guide")
+    check guide.contains("https://canermastan.github.io/jazzyframework/en/")
+    check guide.contains("src/router.nim")
+    check guide.contains("await DB.table")
+    check guide.contains("DB.transaction:")
+    check guide.contains("jazzy make:migration")
+    check guide.contains("Never edit a migration")
+    check guide.contains("Optional Typed ORM")
+    check guide.contains("Authentication, Middleware, and Security")
+    check guide.contains("nimble test")
+
+  test "jazzy new writes the AI agent guide into the project root":
+    let root = getTempDir() / ("jazzy_agent_guide_" &
+      $int(epochTime() * 1_000_000))
+    let previousDirectory = getCurrentDir()
+    createDir(root)
+    try:
+      setCurrentDir(root)
+      newProject("demo_app")
+      let guidePath = root / "demo_app" / "AGENTS.md"
+      check fileExists(guidePath)
+      check readFile(guidePath) == agentsTemplate()
+    finally:
+      setCurrentDir(previousDirectory)
+      if dirExists(root):
+        removeDir(root)
 
   test "migration templates use a hidden generated runner and ORM-ready layout":
     let migration = migrationTemplate("20260917143000_create_users")

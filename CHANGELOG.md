@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2026-09-19
+
+### Added
+- **AI Agent Guide for New Applications**: `jazzy new` now creates a detailed,
+  application-level `AGENTS.md`. It teaches coding agents Jazzy conventions for
+  routing, Context, configuration, database work, transactions, migrations,
+  ORM, views, security, and verification, with a link to the full docs.
+
 ## [0.5.2] - 2026-09-18
 
 ### Added

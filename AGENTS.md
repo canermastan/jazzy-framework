@@ -15,6 +15,19 @@ Jazzy is a high-performance, developer-friendly web framework for Nim, inspired 
 - `examples/`: Reference implementations (e.g., `todo_app`).
 - `tests/`: Comprehensive test suites.
 
+## 🤖 AI Agent Support
+
+`jazzy new` creates a detailed, application-level `AGENTS.md` in the generated
+project root. It is intentionally different from this file: this repository's
+guide is for framework maintainers, while the generated guide teaches coding
+agents how to build a Jazzy application (routing, Context, `.env`, database,
+migrations, ORM, views, security, and verification).
+
+Maintain the generated guide in `src/jazzy/cli/templates.nim` via
+`agentsTemplate()`. `tests/test_cli_templates.nim` verifies both its content
+and that `jazzy new` writes it to a new project. Keep its documentation link
+pointing to `https://canermastan.github.io/jazzyframework/en/`.
+
 ---
 
 ## 🛣 Routing & Middleware

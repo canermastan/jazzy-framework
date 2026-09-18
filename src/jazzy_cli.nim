@@ -56,7 +56,7 @@ proc generateJwtSecret(): string =
     result.add(toHex(int(b), 2))
   result = result.toLowerAscii()
 
-proc newProject(name: string) =
+proc newProject*(name: string) =
   if name.len == 0:
     echo "  Error: Please provide a project name."
     echo "  Usage: jazzy new <project_name>"
@@ -77,6 +77,7 @@ proc newProject(name: string) =
   # Core files
   createFile(name / fmt"{pkgName}.nimble", nimbleTemplate(pkgName))
   createFile(name / "config.nims", configNimsTemplate())
+  createFile(name / "AGENTS.md", agentsTemplate())
   createFile(name / ".gitignore", gitignoreTemplate())
   createFile(name / ".env", envTemplate(generateJwtSecret()))
 
@@ -98,6 +99,8 @@ proc newProject(name: string) =
   echo fmt"    cd {name}"
   echo "    jazzy migrate"
   echo "    nimble c -r src/app.nim"
+  echo ""
+  echo "  ðŸ¤– AI coding assistants: read AGENTS.md before making changes."
 
   echo ""
   echo "  🎷 Happy coding with Jazzy!"
