@@ -171,9 +171,8 @@ proc modelTemplate*(typeName, tableName: string): string =
     "  id int64\n" &
     "  timestamps()\n"
 
-proc controllerTemplate*(controllerName: string, resource = false): string =
-  if resource:
-    return "import jazzy\n\n# " & controllerName & " resource actions.\n" & """
+proc controllerTemplate*(controllerName: string): string =
+  "import jazzy\n\n# " & controllerName & " CRUD actions.\n" & """
 proc index*(ctx: Context) {.async.} =
   ctx.json(%*[])
 
@@ -189,7 +188,6 @@ proc update*(ctx: Context) {.async.} =
 proc destroy*(ctx: Context) {.async.} =
   ctx.status(501).json(%*{"error": "Not implemented"})
 """
-  "import jazzy\n\n# Add " & controllerName & " actions here.\n"
 
 proc migrationRunnerTemplate*(modules, seederModules: openArray[string]): string =
   ## Generated inside `.jazzy/` immediately before a CLI migration command.

@@ -68,7 +68,7 @@ proc normalizeControllerName*(name: string): string =
   if result.len > 0 and not result.endsWith("Controller"):
     result.add("Controller")
 
-proc makeController*(name: string, resource = false, root = "."): int =
+proc makeController*(name: string, root = "."): int =
   let controllerName = normalizeControllerName(name)
   if controllerName.len == 0:
     echo "  Error: Please provide a controller name, for example TaskController."
@@ -81,6 +81,6 @@ proc makeController*(name: string, resource = false, root = "."): int =
     echo "  Error: A controller already exists at " & path
     return 1
   createDir(directory)
-  writeFile(path, controllerTemplate(controllerName, resource))
+  writeFile(path, controllerTemplate(controllerName))
   echo "  Created " & path
   0

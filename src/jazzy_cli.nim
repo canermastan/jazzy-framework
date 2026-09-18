@@ -27,8 +27,7 @@ proc showHelp() =
   echo "      --apply                   Apply safe changes"
   echo "      --check                   Exit non-zero if migration work remains"
   echo "    jazzy make:model <name>     Create a typed ORM model skeleton"
-  echo "    jazzy make:controller <name> [--crud]"
-  echo "                               Create a controller (use --crud for CRUD actions)"
+  echo "    jazzy make:controller <name> Create a CRUD controller"
   echo "    jazzy make:migration <name> Create a versioned database migration"
   echo "    jazzy make:seeder <name>    Create an explicit database seeder"
   echo "    jazzy migrate [--step]      Apply pending migrations"
@@ -157,18 +156,10 @@ when isMainModule:
       quit(1)
     quit(makeModel(args[1]))
   of "make:controller":
-    if args.len < 2 or args.len > 3:
-      echo "  Error: Usage: jazzy make:controller <Name> [--crud]"
+    if args.len != 2:
+      echo "  Error: Usage: jazzy make:controller <Name>"
       quit(1)
-    var resource = false
-    if args.len == 3:
-      # `--resource`/`-r` are Laravel-compatible aliases. Jazzy's public DX
-      # says what it does: this controller gets CRUD actions.
-      if args[2] notin ["--crud", "--resource", "-r"]:
-        echo "  Error: Unknown controller option: " & args[2]
-        quit(1)
-      resource = true
-    quit(makeController(args[1], resource = resource))
+    quit(makeController(args[1]))
   of "make:seeder":
     if args.len != 2:
       echo "  Error: Usage: jazzy make:seeder <name>"

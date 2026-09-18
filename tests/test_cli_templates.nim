@@ -36,7 +36,7 @@ suite "CLI Security Scaffold":
     check model.contains("table \"api_keys\"")
     check model.contains("id int64")
     check model.contains("timestamps()")
-    let controller = controllerTemplate("TaskController", resource = true)
+    let controller = controllerTemplate("TaskController")
     check controller.contains("proc index*")
     check controller.contains("proc destroy*")
     check gitignoreTemplate().contains(".jazzy/")
@@ -52,7 +52,7 @@ suite "CLI Security Scaffold":
       check makeModel("APIKey", root) == 0
       let apiKey = readFile(root / "src" / "models" / "api_key.nim")
       check apiKey.contains("table \"api_keys\"")
-      check makeController("TaskController", resource = true, root = root) == 0
+      check makeController("TaskController", root = root) == 0
       let controller = readFile(root / "src" / "controllers" / "task_controller.nim")
       check controller.contains("proc store*")
       check controller.contains("proc destroy*")
