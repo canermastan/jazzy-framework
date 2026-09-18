@@ -31,7 +31,27 @@ suite "CLI Security Scaffold":
     check runner.contains("import seeders/s20260917143000_demo_users")
     check runner.contains("seedAll(allSeeders())")
     check seederTemplate("20260917143000_demo_users").contains("seed \"20260917143000_demo_users\"")
+    let model = modelTemplate("ApiKey", "api_keys")
+    check model.contains("model ApiKey:")
+    check model.contains("table \"api_keys\"")
+    check model.contains("id int64")
+    check model.contains("timestamps()")
     check gitignoreTemplate().contains(".jazzy/")
+
+  test "make:model creates a conventional typed model skeleton":
+    let root = getTempDir() / ("jazzy_model_" & $int(epochTime() * 1_000_000))
+    createDir(root / "src")
+    try:
+      check makeModel("Task", root) == 0
+      let task = readFile(root / "src" / "models" / "task.nim")
+      check task.contains("model Task:")
+      check task.contains("table \"tasks\"")
+      check makeModel("APIKey", root) == 0
+      let apiKey = readFile(root / "src" / "models" / "api_key.nim")
+      check apiKey.contains("table \"api_keys\"")
+    finally:
+      if dirExists(root):
+        removeDir(root)
 
   test "migration commands self-generate their hidden runner":
     let root = getTempDir() / ("jazzy_hidden_runner_" &

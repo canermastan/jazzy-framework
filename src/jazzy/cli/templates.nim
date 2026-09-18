@@ -163,6 +163,14 @@ proc seederTemplate*(name: string): string =
   discard
 """
 
+proc modelTemplate*(typeName, tableName: string): string =
+  ## The common model shape for a `create_<table>` migration. Developers add
+  ## domain fields after creating the matching migration.
+  result = "import jazzy\n\nmodel " & typeName & ":\n" &
+    "  table \"" & tableName & "\"\n\n" &
+    "  id int64\n" &
+    "  timestamps()\n"
+
 proc migrationRunnerTemplate*(modules, seederModules: openArray[string]): string =
   ## Generated inside `.jazzy/` immediately before a CLI migration command.
   ## It is deliberately not part of the application's source tree.
