@@ -48,9 +48,12 @@ type
     actions: seq[AlterAction]
 
 proc createTable*(name: string): SchemaBuilder =
+  ## Create a table strictly. A name collision must fail so a migration cannot
+  ## be recorded as applied against an unexpected pre-existing schema.
+  ## Call ``.ifNotExists()`` explicitly for intentionally idempotent setup.
   new(result)
   result.tableName = sanitizeIdentifier(name)
-  result.ifNotExists = true
+  result.ifNotExists = false
 
 proc ifNotExists*(sb: SchemaBuilder, value = true): SchemaBuilder =
   sb.ifNotExists = value

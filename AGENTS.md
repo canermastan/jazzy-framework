@@ -220,7 +220,9 @@ normal migration.
 ### Schema Builder
 
 The schema builder creates tables and is normally called inside a migration's
-`up:` or `down:` block. `execute()` is async:
+`up:` or `down:` block. `createTable()` is strict by default: an unexpected
+existing table aborts the migration. Use `.ifNotExists()` only for intentional
+idempotent setup. `execute()` is async:
 
 ```nim
 migration "20260917143000_create_users":

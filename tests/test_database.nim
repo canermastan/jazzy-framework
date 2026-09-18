@@ -34,6 +34,13 @@ suite "await-first SQLite query builder":
     check (waitFor DB.table("users").where("id", id).delete()) == 1
     check (waitFor DB.table("users").count()) == 0
 
+  test "does not silently ignore an existing table":
+    expect CatchableError:
+      waitFor createTable("users").increments("id").execute()
+
+    # Idempotent setup remains available when it is intentionally requested.
+    waitFor createTable("users").increments("id").ifNotExists().execute()
+
   test "supports raw queries and soft deletes":
     waitFor createTable("tasks").increments("id").string("title").softDeletes().execute()
     discard waitFor DB.table("tasks").insert(%*{"title": "First"})

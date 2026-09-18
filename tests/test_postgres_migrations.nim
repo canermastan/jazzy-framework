@@ -39,6 +39,7 @@ suite "PostgreSQL migrations":
 
       discard waitFor DB.rawExec("DROP TABLE IF EXISTS \"jazzy_postgres_migration_test\"")
       discard waitFor DB.rawExec("DROP TABLE IF EXISTS \"jazzy_postgres_migration_rollback_test\"")
+      discard waitFor DB.rawExec("DROP TABLE IF EXISTS \"jazzy_postgres_schema_collision_test\"")
       waitFor ensureMigrationTable()
       discard waitFor DB.rawExec("DELETE FROM \"jazzy_migrations\" WHERE \"name\" IN (?, ?)",
         migrationName, failingMigrationName)
@@ -57,5 +58,14 @@ suite "PostgreSQL migrations":
       check tables[0]["table_name"].kind == JNull
       check (waitFor DB.raw("SELECT \"name\" FROM \"jazzy_migrations\" WHERE \"name\" = ?",
         failingMigrationName)).len == 0
+
+      waitFor createTable("jazzy_postgres_schema_collision_test").increments("id").execute()
+      expect CatchableError:
+        waitFor createTable("jazzy_postgres_schema_collision_test").increments("id").execute()
+      waitFor createTable("jazzy_postgres_schema_collision_test")
+        .increments("id")
+        .ifNotExists()
+        .execute()
+      discard waitFor DB.rawExec("DROP TABLE \"jazzy_postgres_schema_collision_test\"")
 
       waitFor closePostgresForWorker()
