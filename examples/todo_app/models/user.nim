@@ -1,6 +1,8 @@
 import jazzy
 
-type User* = object
-  id*: int
-  email*: string
-  passwordHash*: string
+model User:
+  table "users"
+  id int64
+  username string
+  passwordHash string, column = "password"
+  timestamps()

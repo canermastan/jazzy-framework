@@ -5,6 +5,7 @@ import server, config, logger
 import ../drivers/mummy_driver
 import ../devui/devui
 import ../auth/[csrf, security]
+import ../db/database
 
 type
   JazzyStatic* = object
@@ -35,6 +36,7 @@ proc wrapMiddleware(mw: Middleware, next: HandlerProc): HandlerProc =
 proc serve*(app: JazzyStatic, port: int, address: string = "0.0.0.0") =
   # Always ensure .env is loaded if present in current directory
   loadEnv(silent = true)
+  configureDatabase()
   for warning in jwtConfigurationWarnings():
     Log.warn(warning)
   for warning in csrfConfigurationWarnings():

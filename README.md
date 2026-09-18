@@ -34,7 +34,7 @@ When building a web application, piecing together third-party libraries, wiring 
 
 * **⚡ Lightning Fast Core:** Multi-threaded Mummy HTTP engine under the hood for maximum throughput.
 * **🛡️ Built-in Auth & Security:** Out-of-the-box JWT Authentication, Basic Auth, Rate Limiting, and CORS protection.
-* **💾 Fluent DB Query Builder:** Expressive, thread-safe SQLite query and schema builder running in WAL mode.
+* **💾 Database Toolkit:** Await-first SQLite and PostgreSQL query builder, transactional migrations, and an optional typed ORM.
 * **✅ Declarative Validation:** Expressive validation rules that automatically return `422 Unprocessable Entity` on failure.
 * **🎨 Melody Template Engine:** Nim-native HTML rendering engine with zero allocations, layout inheritance, and hot-reload.
 * **⚙️ Zero Setup & Dev UI:** Automatic `.env` loading and a built-in `/dev-ui` dashboard for real-time monitoring during development.
@@ -56,7 +56,7 @@ proc createTodo*(ctx: Context) {.async.} =
   })
 
   # 2. DATABASE (Fluent API)
-  let id = DB.table("todos").insert(%*{
+  let id = await DB.table("todos").insert(%*{
     "title": data["title"].getStr,
     "priority": data["priority"].getInt,
     "completed": 0
@@ -79,10 +79,10 @@ nimble install jazzy
 ```nim
 import jazzy
 
-proc home(ctx: Context) =
+Route.get("/", proc(ctx: Context) {.async.} =
   ctx.text("Hello Jazzy!")
+)
 
-Route.get("/", home)
 Jazzy.serve(8080)
 ```
 
@@ -138,18 +138,93 @@ A zero-allocation, clean HTML rendering engine with native Nim syntax and layout
 @endsection
 ```
 
-### 3. Database & Schema Builder
-Thread-safe SQLite query builder operating in WAL mode:
+### 3. Database, Migrations & ORM
+Await-first query builder. SQLite is the zero-config default; PostgreSQL uses a native async pool:
 ```nim
 # Fetching Data
-let users = DB.table("users").where("active", 1).get()
+let users = await DB.table("users").where("active", true).get()
 
-# Schema Migrations
-createTable("users")
+# Conditions and mutation results
+let active = await DB.table("users")
+  .whereIn("id", [1, 2, 3])
+  .whereNotNull("email")
+  .get()
+let changed = await DB.table("users").where("id", 1).update(%*{"active": false})
+
+# Return inserted/updated columns on either driver
+let user = await DB.table("users").returning("id", "email").insert(%*{
+  "email": "ada@example.com"
+})
+
+# Schema setup
+await createTable("users")
   .increments("id")
   .string("email", nullable = false)
+  .unique("email")
   .execute()
 ```
+
+```env
+# SQLite (default)
+DB_CONNECTION=sqlite
+DB_DATABASE=database.sqlite
+
+# PostgreSQL
+# DB_CONNECTION=postgres
+# DATABASE_URL=postgresql://user:password@localhost:5432/app
+```
+
+Jazzy quotes builder identifiers, so table and column names such as `order` are safe. Raw SQL accepts portable `?` placeholders on both drivers; in PostgreSQL raw SQL, write `??` for a literal question mark (for example the JSON `?` operator).
+
+Use versioned, transactional migrations for schema changes:
+
+```bash
+jazzy make:migration create_users
+jazzy migrate
+jazzy migrate:status
+jazzy migrate:rollback
+jazzy migrate --step
+jazzy migrate --pretend
+jazzy migrate:fresh
+```
+
+Migration files live only in `src/migrations/`. Jazzy self-generates its
+compiled runner under ignored `.jazzy/`, so projects have no registry or
+`migrate.nim` file to maintain. `migrate:fresh`, `migrate:reset`, and all
+database-changing migration commands require `--force` when `APP_ENV=production`.
+
+For explicit demo/reference data, use `jazzy make:seeder demo_users` and
+`jazzy db:seed`; `jazzy migrate:fresh --seed` recreates a local database and
+runs the seeders.
+
+The optional ORM uses the same configured database and pool as `DB.table()`:
+
+```nim
+model User:
+  table "users"
+  id int64
+  displayName string, column = "display_name"
+  bio Option[string]
+  timestamps()
+
+let user = await User.patch(1, %*{"displayName": "Ada"})
+let users = await User.whereNotNull("displayName").get()
+```
+
+Models also support `hasOne`, `hasMany`, `belongsTo`, `belongsToMany`, nested
+batch loading (`User.with("posts.comments")`), pivot `attach`/`detach`/`sync`,
+typed factories, enum/`DateTime` fields, dirty tracking, and lifecycle hooks.
+
+Existing projects can preview the await-first upgrade before changing files:
+
+```bash
+jazzy upgrade db-async
+jazzy upgrade db-async --apply
+jazzy upgrade db-async --check
+```
+
+The upgrader changes direct calls inside `.async.` procedures and reports
+ambiguous synchronous call sites with their file and line number.
 
 ### 4. Routing & Middleware Guards
 ```nim
@@ -174,7 +249,7 @@ ctx.cache.put("stats", data, ttl = 3600)
 ```nim
 proc showProfile*(ctx: Context) {.async.} =
   let userId = ctx.param("id")
-  let user = DB.table("users").where("id", userId).first()
+  let user = await DB.table("users").where("id", userId).first()
   
   # Using Jazzy's built-in isNull helper
   if user.isNull():
@@ -215,7 +290,7 @@ proc handleDownload*(ctx: Context) =
 ## DOCUMENTATION
 
 📖 For full documentation, guides, and comprehensive API references:
-👉 **[Jazzy Framework Documentation](https://canermastan.github.io/jazzyframework/en/)**
+👉 **[Jazzy Framework Documentation](https://canermastan.github.io/jazzyframework/)**
 
 ---
 

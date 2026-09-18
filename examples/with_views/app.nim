@@ -1,9 +1,8 @@
 import jazzy
 import std/[json, strutils]
 
-# Create a Jazzy app
-# By default, it will look for the "views" directory in the current working directory.
-# In this example, make sure you run this from the "examples/with_views" folder!
+# Jazzy loads `.env` automatically. Run this example from its own directory so
+# Melody can find the local `views/` and `public/` folders.
 
 proc showForm(ctx: Context) {.async.} =
   # Render the 'home.html' view. We pass no extra data for the initial GET.
@@ -38,10 +37,11 @@ proc submitForm(ctx: Context) {.async.} =
     "old": {"name": "", "email": "", "inquiry": ""}
   })
 
-# Register routes
-Route.get("/", showForm)
-Route.post("/", submitForm)
+proc main() =
+  Route.get("/", showForm)
+  Route.post("/", submitForm)
+  Jazzy.serveStatic("public", "/assets")
+  Jazzy.serve(8080)
 
-# Start the server on port 8080
-Jazzy.serveStatic("public", "/assets")
-Jazzy.serve(8080)
+when isMainModule:
+  main()

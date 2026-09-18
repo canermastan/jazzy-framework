@@ -1,23 +1,23 @@
 import jazzy
-import std/[json, options]
+import ../models/user
 
-proc authClaims*(user: JsonNode): JsonNode =
+proc authClaims*(user: User): JsonNode =
   ## Returns the only user fields that may be stored in an authentication token.
   result = %*{
-    "id": user["id"],
-    "username": user["username"]
+    "id": user.id,
+    "username": user.username
   }
 
-proc login*(username, password: string): Option[JsonNode] =
-  let user = DB.table("users").where("username", username).first()
-  if user.kind != JNull and verifyPassword(password, user["password"].getStr):
-    return some(user)
+proc login*(username, password: string): Future[Option[User]] {.async.} =
+  let user = await User.where("username", username).first()
+  if user.isSome and verifyPassword(password, user.get().passwordHash):
+    return user
   else:
-    return none(JsonNode)
+    return none(User)
 
-proc register*(username, password: string): int =
-  let hashedPassword = hashPassword(password)
-  return DB.table("users").insert(%*{
-    "username": username,
-    "password": hashedPassword
-  })
+proc register*(username, password: string): Future[int64] {.async.} =
+  let user = await User.create(User(
+    username: username,
+    passwordHash: hashPassword(password)
+  ))
+  user.id

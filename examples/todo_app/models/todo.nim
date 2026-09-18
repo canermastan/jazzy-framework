@@ -1,6 +1,8 @@
 import jazzy
 
-type Todo* = object
-  id*: int
-  title*: string
-  completed*: bool
+model Todo:
+  table "todos"
+  id int64
+  title string
+  completed bool
+  timestamps()

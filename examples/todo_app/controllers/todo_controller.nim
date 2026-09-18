@@ -2,17 +2,20 @@ import jazzy
 import ../services/todo_service
 import ../models/todo
 
+proc todoJson(todo: Todo): JsonNode =
+  modelData(todo)
+
 # GET /todos
 proc list*(ctx: Context) {.async.} =
-  let todos = todo_service.getAllTodos()
-  ctx.json(todos)
+  let todos = await todo_service.getAllTodos()
+  ctx.json(modelData(todos))
 
 # GET /todos/:id
 proc show*(ctx: Context) {.async.} =
-  let id = ctx.request.params["id"].parseInt
-  let todo = todo_service.getTodo(id)
+  let id = ctx.param("id").parseBiggestInt.int64
+  let todo = await todo_service.getTodo(id)
   if todo.isSome:
-    ctx.json(%*(todo.get))
+    ctx.json(todoJson(todo.get))
   else:
     ctx.status(404).json(%*{"error": "Todo not found"})
 
@@ -22,21 +25,27 @@ proc create*(ctx: Context) {.async.} =
     "title": "required|min:3"
   })
 
-  let newTodo = todo_service.createTodo(data["title"].getStr)
-  ctx.status(201).json(%*{"status": "created", "data": newTodo})
+  let newTodo = await todo_service.createTodo(data["title"].getStr)
+  ctx.status(201).json(%*{"status": "created", "data": todoJson(newTodo)})
 
 # PATCH /todos/:id
 proc update*(ctx: Context) {.async.} =
-  let id = ctx.request.params["id"].parseInt
+  let id = ctx.param("id").parseBiggestInt.int64
   let jsonBody = ctx.validate(%*{
     "completed": "required|bool"
   })
 
-  let data = todo_service.updateTodo(id, jsonBody["completed"].getBool)
-  ctx.status(200).json(%*{"status": "updated", "data": data})
+  let data = await todo_service.updateTodo(id, jsonBody["completed"].getBool)
+  if data.isSome:
+    ctx.status(200).json(%*{"status": "updated", "data": todoJson(data.get)})
+  else:
+    ctx.status(404).json(%*{"error": "Todo not found"})
 
 # DELETE /todos/:id
 proc delete*(ctx: Context) {.async.} =
-  let id = ctx.request.params["id"].parseInt
-  todo_service.deleteTodo(id)
-  ctx.status(204).json(%*{"status": "deleted"})
+  let id = ctx.param("id").parseBiggestInt.int64
+  let deleted = await todo_service.deleteTodo(id)
+  if deleted == 0:
+    ctx.status(404).json(%*{"error": "Todo not found"})
+  else:
+    ctx.status(204).text("")

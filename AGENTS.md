@@ -5,13 +5,13 @@ Jazzy is a high-performance, developer-friendly web framework for Nim, inspired 
 ## 🚀 Core Philosophy
 - **Context-First**: Every request handler receives a `Context` object (`ctx`) containing request, response, auth, and cache.
 - **Thread-Safety**: All internal components (DB, Cache) use `Lock` or WAL mode to ensure safety in Mummy's multithreaded environment.
-- **Automatic DX**: Framework automatically loads `.env` on `Jazzy.serve()` and provides a Dev UI in development mode.
+- **Automatic DX**: Framework loads `.env` automatically before serving and lazily for database/schema work that runs before `Jazzy.serve()`. The Dev UI is explicit opt-in in development mode.
 
 ---
 
 ## 🛠 Project Structure
 - `src/`: Framework core logic.
-- `docs/`: Comprehensive documentation.
+- `jazzyframework/`: Starlight documentation website and its own nested Git repository.
 - `examples/`: Reference implementations (e.g., `todo_app`).
 - `tests/`: Comprehensive test suites.
 
@@ -99,31 +99,197 @@ ctx.renderCached("landing", %*{"data": "static"}, ttl=3600)
 
 ---
 
-## 🗄 Database (Query Builder & Schema)
-Jazzy uses SQLite with thread-safe WAL mode.
+## 🗄 Database (Query Builder, Migrations & ORM)
+Jazzy has an await-first query builder for **SQLite** and **PostgreSQL**.
+Every database operation returns a `Future` and must use `await` inside an
+async handler, or `waitFor` during startup. Do not introduce `getAsync`-style
+method names: `await DB.table(...).get()` is the public DX.
+
+### Configuration
+
+New applications configure the driver in `.env`; do not call `connectDB()` in
+new code. `connectDB(path)` remains a legacy SQLite compatibility API.
+
+```env
+# SQLite (default)
+DB_CONNECTION=sqlite
+DB_DATABASE=database.sqlite
+
+# PostgreSQL
+# DB_CONNECTION=postgres
+# DATABASE_URL=postgresql://user:password@127.0.0.1:5432/app
+# DB_POOL_MIN=1
+# DB_POOL_MAX=1
+```
+
+SQLite uses a shared, locked WAL connection. PostgreSQL owns one async pool per
+Mummy OS worker; `DB_POOL_MIN` and `DB_POOL_MAX` therefore apply **per worker**.
+Start with `1`/`1`. MySQL/MariaDB is not supported yet.
 
 ### Query Builder (`DB`)
+
 ```nim
 # Fetching
-let user = DB.table("users").where("email", "test@test.com").first()
-let posts = DB.table("posts").where("active", 1).limit(10).get()
+let user = await DB.table("users").where("email", "test@test.com").first()
+let posts = await DB.table("posts")
+  .whereIn("id", [1, 2, 3])
+  .whereNotNull("published_at")
+  .orderBy("id", "DESC")
+  .limit(10)
+  .get()
 
-# Mutations
-let newId = DB.table("users").insert(%*{"title": "New Post"})
-DB.table("users").where("id", 1).update(%*{"completed": true})
-DB.table("users").where("deleted", 1).delete()
+# Mutations return the numeric id or affected-row count.
+let newId = await DB.table("users").insert(%*{"title": "New Post"})
+let updated = await DB.table("users").where("id", 1)
+  .update(%*{"completed": true})
+let deleted = await DB.table("users").where("id", 1).delete()
+
+# Use returning for one expected changed record or a custom/UUID primary key.
+let createdUser = await DB.table("users").returning("id", "email")
+  .insert(%*{"email": "test@test.com"})
 ```
+
+Available condition helpers include `where`, `orWhere`, `whereNull`,
+`whereNotNull`, `whereIn`, `whereNotIn`, `orWhereIn`, and `orWhereNotIn`.
+`withTrashed`, `onlyTrashed`, `restore`, and `forceDelete` support soft-delete
+tables. `update`, `delete`, `restore`, and `forceDelete` return affected rows.
+
+Builder identifiers are validated and SQL-quoted, so reserved names such as
+`order` work. PostgreSQL builder parameters are type-aware from table metadata:
+string route parameters work for `BIGINT`, UUID, boolean, JSONB, and timestamp
+columns without app-level casts.
+
+### Raw SQL
+
+```nim
+let rows = await DB.raw("SELECT name FROM users WHERE id = ?", 7)
+let changed = await DB.rawExec("UPDATE users SET active = ? WHERE id = ?", false, 7)
+```
+
+Raw SQL uses portable `?` placeholders. Jazzy converts them to PostgreSQL
+`$1`, `$2`, ... automatically. Write `??` for a literal PostgreSQL question
+mark operator (for example JSONB `?`). Raw queries cannot infer a column type;
+use explicit PostgreSQL casts such as `?::uuid` when needed.
+
+### Migrations
+
+New projects already include versioned migration infrastructure rather than
+running schema setup at every server boot: after `jazzy new`, configure `.env`
+and run `jazzy migrate`. `jazzy migrations:init` exists only to add the same
+visible `src/migrations/` folder to a project created before migrations were
+available. The CLI discovers those files and compiles a self-regenerating,
+ignored `.jazzy/migration_runner.nim`; never add a `migrate.nim` or registry to
+an application:
+
+```bash
+jazzy make:migration create_users
+jazzy migrate
+jazzy migrate:status # applied batches plus pending files
+jazzy migrate:rollback
+jazzy migrate --step
+jazzy migrate --pretend
+jazzy migrate:fresh
+```
+
+A migration uses one declaration with both forward and rollback logic:
+
+```nim
+migration "20260917143000_create_users":
+  up:
+    await createTable("users")
+      .increments("id")
+      .string("email")
+      .unique("email")
+      .timestamps()
+      .execute()
+  down:
+    await dropTable("users")
+```
+
+Migrations and their history rows are transactional on SQLite and PostgreSQL.
+`--pretend` lists pending names without executing arbitrary Nim migration
+bodies or creating history state. `migrate:fresh` and `migrate:reset` are
+destructive. All database-changing migration commands require `--force` with
+`APP_ENV=production`. Never alter a migration that has already been
+deployed—create a new migration instead.
+
+Seeders are explicit and live in `src/seeders/`: use `jazzy make:seeder name`,
+`jazzy db:seed`, or `jazzy migrate:fresh --seed`. They never run as part of a
+normal migration.
 
 ### Schema Builder
-Fluent API for migrations (usually in `schema.nim`):
+
+The schema builder creates tables and is normally called inside a migration's
+`up:` or `down:` block. `createTable()` is strict by default: an unexpected
+existing table aborts the migration. Use `.ifNotExists()` only for intentional
+idempotent setup. `execute()` is async:
+
 ```nim
-createTable("users")
-  .increments("id")
-  .string("email", nullable = false)
-  .string("password")
-  .boolean("is_admin", default = false)
-  .execute()
+migration "20260917143000_create_users":
+  up:
+    await createTable("users")
+      .increments("id")
+      .string("email", nullable = false)
+      .string("password")
+      .boolean("is_admin", default = false)
+      .timestamps()
+      .execute()
 ```
+
+`increments` maps to SQLite `INTEGER PRIMARY KEY AUTOINCREMENT` and PostgreSQL
+`BIGSERIAL PRIMARY KEY`; booleans and timestamps are mapped per driver.
+
+Use `foreignId("user_id").constrained("users")` for a portable foreign key;
+chain `onDelete("CASCADE")`/`onUpdate(...)` when needed. `index(...)` and
+`unique(...)` create portable indexes. Existing tables can use
+`alterTable("users").addString(...).renameColumn(...).dropColumn(...).execute()`, while
+`renameColumn`, `renameTable`, and `dropTable` are standalone async helpers.
+
+### Optional ORM
+
+Jazzy's ORM is a typed convenience layer over the same public query builder;
+it does not own another pool or driver. It is optional—`DB.table()` remains a
+first-class API for joins, partial updates, and custom SQL.
+
+```nim
+model User:
+  table "users"
+  uuid string, column = "user_uuid", primaryKey = true
+  displayName string, column = "display_name"
+  bio Option[string]
+  timestamps()
+
+let user = await User.find(ctx.param("id"))
+let changed = await User.patch(ctx.param("id"), %*{"displayName": "Ada"})
+```
+
+Models support nullable scalar `Option[T]` fields, `column = "..."` mapping,
+and `primaryKey = true` on a custom key. `patch()` rejects custom keys and
+managed timestamps, preventing accidental identity changes. `find()`/`first()`,
+`update()`, and `patch(id, ...)` return `Option[T]`.
+`modelData(value)` serializes one model, while `modelData(models)` serializes
+the `seq[Model]` returned by `get()` directly for `ctx.json()`.
+
+Relations are declared in the same block with explicit keys:
+
+```nim
+hasOne profile, Profile, foreignKey = "userId"
+hasMany posts, Post, foreignKey = "userId"
+belongsTo author, User, foreignKey = "authorId"
+belongsToMany roles, Role,
+  through = "role_user", foreignKey = "user_id", relatedKey = "role_id"
+
+let users = await User.with("posts.comments", "roles").get()
+let page = await User.where("active", true).paginate(page = 1, perPage = 20)
+```
+
+Relation target models must already be in scope. `with()` batches nested
+relation paths, scopes are declared with `scope name:`, and `Page[T]` exposes
+`data`, `total`, `perPage`, `currentPage`, and `lastPage`. `createRelated()`
+creates declared has-one/has-many children; `attach`, `detach`, and `sync`
+manage many-to-many pivots. Models also support native enum/`DateTime` casts,
+`make`/`factory`, `dirty`/`isDirty`, `user = await user.save()`, and the typed
+`beforeCreate`/`afterCreate`/`beforeUpdate`/`afterUpdate`/delete hooks.
 
 ---
 
@@ -139,12 +305,31 @@ let user = ctx.cache.getJson("user_json")
 ---
 
 ## 📝 Logging & Debugging
-- **Log Level**: Set `LOG_LEVEL` in `.env` (DEBUG, INFO, WARN, ERROR, NONE).
+- **Log Level**: Set `LOG_LEVEL` in `.env` (`DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, or `NONE`).
 - **Request ID**: Every request has a UUID in `ctx.requestId` and `X-Request-Id` header.
-- **Dev UI**: Available at `/dev-ui` in development mode.
+- **Dev UI**: Available only when `APP_ENV=development` and `DEV_UI_ENABLED=true`. Its table browser/schema viewer currently use SQLite metadata; PostgreSQL explorer support is pending.
 
 ---
 
 ## 🧪 Testing
 Run all tests: `nimble test`.
 Individual: `nim c -r --path:src tests/test_router.nim`.
+
+Run the real PostgreSQL builder suite with a running server and
+`JAZZY_POSTGRES_TEST_DSN` set, for example:
+
+```powershell
+$env:JAZZY_POSTGRES_TEST_DSN = "postgresql://jazzy:password@127.0.0.1:55432/app"
+nim c -r --path:src tests/test_postgres_builder.nim
+```
+
+Run `tests/test_postgres_migrations.nim` with the same DSN to verify pinned
+PostgreSQL migration transactions. `tests/test_orm_and_migrations.nim` covers
+the SQLite migration runner and single-block ORM API.
+`tests/test_postgres_orm.nim` verifies mapped/nullable models and eager
+relations, has-one, nested loading, and pivot writes against a real PostgreSQL
+server when `JAZZY_POSTGRES_TEST_DSN` is set.
+
+Existing projects can preview/apply the await-first conversion with
+`jazzy upgrade db-async`, `jazzy upgrade db-async --apply`, and
+`jazzy upgrade db-async --check`.
