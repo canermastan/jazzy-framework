@@ -158,9 +158,15 @@ suite "Jazzy migrations and ORM":
     check found.isSome
     check found.get().name == "Ada"
 
-    let users = waitFor OrmUser.orderBy("id", "DESC").where("active", true).get()
+    # Follow the familiar Eloquent flow: constrain first, then order.
+    let users = waitFor OrmUser.where("active", true).orderBy("id", "DESC").get()
     check users.len == 1
     check users[0].id == created.id
+
+    # `orderBy` can also begin an unfiltered query.
+    let newest = waitFor OrmUser.orderBy("id", "DESC").get()
+    check newest.len == 1
+    check newest[0].id == created.id
 
     let changed = waitFor OrmUser.update(created.id,
       OrmUser(name: "Grace", active: false))
