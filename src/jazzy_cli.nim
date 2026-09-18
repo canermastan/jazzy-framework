@@ -2,7 +2,7 @@
 ## Usage: jazzy new <project_name>
 
 import std/[os, strutils, strformat, sysrand]
-import jazzy/cli/[db_async_upgrade, migrations, templates]
+import jazzy/cli/[db_async_upgrade, migrations, scaffolding, templates]
 import jazzy/core/version
 
 const VERSION = JAZZY_VERSION
@@ -27,6 +27,8 @@ proc showHelp() =
   echo "      --apply                   Apply safe changes"
   echo "      --check                   Exit non-zero if migration work remains"
   echo "    jazzy make:model <name>     Create a typed ORM model skeleton"
+  echo "    jazzy make:controller <name> [--resource]"
+  echo "                               Create a controller (use -r for CRUD actions)"
   echo "    jazzy make:migration <name> Create a versioned database migration"
   echo "    jazzy make:seeder <name>    Create an explicit database seeder"
   echo "    jazzy migrate [--step]      Apply pending migrations"
@@ -154,6 +156,17 @@ when isMainModule:
       echo "  Error: Usage: jazzy make:model <PascalCaseName>"
       quit(1)
     quit(makeModel(args[1]))
+  of "make:controller":
+    if args.len < 2 or args.len > 3:
+      echo "  Error: Usage: jazzy make:controller <Name> [--resource|-r]"
+      quit(1)
+    var resource = false
+    if args.len == 3:
+      if args[2] notin ["--resource", "-r"]:
+        echo "  Error: Unknown controller option: " & args[2]
+        quit(1)
+      resource = true
+    quit(makeController(args[1], resource = resource))
   of "make:seeder":
     if args.len != 2:
       echo "  Error: Usage: jazzy make:seeder <name>"

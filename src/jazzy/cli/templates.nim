@@ -171,6 +171,26 @@ proc modelTemplate*(typeName, tableName: string): string =
     "  id int64\n" &
     "  timestamps()\n"
 
+proc controllerTemplate*(controllerName: string, resource = false): string =
+  if resource:
+    return "import jazzy\n\n# " & controllerName & " resource actions.\n" & """
+proc index*(ctx: Context) {.async.} =
+  ctx.json(%*[])
+
+proc show*(ctx: Context) {.async.} =
+  ctx.status(501).json(%*{"error": "Not implemented"})
+
+proc store*(ctx: Context) {.async.} =
+  ctx.status(501).json(%*{"error": "Not implemented"})
+
+proc update*(ctx: Context) {.async.} =
+  ctx.status(501).json(%*{"error": "Not implemented"})
+
+proc destroy*(ctx: Context) {.async.} =
+  ctx.status(501).json(%*{"error": "Not implemented"})
+"""
+  "import jazzy\n\n# Add " & controllerName & " actions here.\n"
+
 proc migrationRunnerTemplate*(modules, seederModules: openArray[string]): string =
   ## Generated inside `.jazzy/` immediately before a CLI migration command.
   ## It is deliberately not part of the application's source tree.
