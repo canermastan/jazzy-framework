@@ -4,7 +4,7 @@
   <p><em>The high-performance, batteries-included web framework for Nim.</em></p>
 
   <p>
-    <a href="https://nim-lang.org/"><img src="https://img.shields.io/badge/Nim-2.0%2B-FFE953?style=flat-square&logo=nim&logoColor=000" alt="Nim 2.0+"></a>
+    <a href="https://nim-lang.org/"><img src="https://img.shields.io/badge/Nim-2.2.4%2B-FFE953?style=flat-square&logo=nim&logoColor=000" alt="Nim 2.2.4+"></a>
     <a href="https://github.com/canermastan/jazzy-framework/releases"><img src="https://img.shields.io/github/v/tag/canermastan/jazzy-framework?style=flat-square&color=blueviolet&label=version" alt="Version"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"></a>
   </p>
