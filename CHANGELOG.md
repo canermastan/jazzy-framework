@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.4] - 2026-11-18
+
+### Fixed
+- **Native HS256 JWT Support**: Replaced external `jwt` and `bearssl` dependency with native `nimcrypto` HMAC-SHA256 and `std/base64`, fixing BearSSL/Nim compiler type mismatch errors on new project scaffolding (#35).
+- **Package Path Resolution**: Deduplicated `~/.nimble/pkgs2` package paths in `config.nims` template to resolve the latest version and avoid conflicts.
+
 ## [0.5.3] - 2026-09-19
 
 ### Added
