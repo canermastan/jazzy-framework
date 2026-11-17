@@ -14,7 +14,6 @@ installExt    = @["nim", "html", "css", "js"]
 
 requires "nim >= 2.2.4"
 requires "mummy >= 0.4.0"
-requires "jwt >= 0.1.0"
 requires "nimcrypto >= 0.5.4"
 requires "tiny_sqlite >= 0.2.0"
 requires "async_postgres >= 0.3.0 & < 0.4.0"

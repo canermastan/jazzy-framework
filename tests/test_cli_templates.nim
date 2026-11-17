@@ -12,6 +12,14 @@ suite "CLI Security Scaffold":
     check env.contains("APP_ENV=development")
     check env.contains("DEV_UI_ENABLED=true")
 
+  test "config.nims template resolves latest package versions and avoids duplicates":
+    let cfg = configNimsTemplate()
+    check cfg.contains("parsePkg")
+    check cfg.contains("cmpVer")
+    check cfg.contains("#head")
+    check cfg.contains("best")
+    check cfg.contains("pkgs2Dir")
+
   test "new applications include an AI agent guide with Jazzy conventions":
     let guide = agentsTemplate()
     check guide.contains("# Jazzy Application Guide")

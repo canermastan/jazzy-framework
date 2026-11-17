@@ -19,16 +19,48 @@ requires "jazzy >= {JAZZY_VERSION}"
 """
 
 proc configNimsTemplate*(): string =
-  result = """# This file fixes IDE support for Nimble packages
-import std/os
+  result = """# This file fixes IDE support and package resolution for Nimble packages
+import std/[os, strutils, tables]
+
+proc parsePkg(dirname: string): tuple[name, ver: string] =
+  let lastDash = dirname.rfind('-')
+  if lastDash == -1: return (dirname, "")
+  let secondLastDash = dirname[0 ..< lastDash].rfind('-')
+  if secondLastDash == -1: return (dirname, "")
+  result.name = dirname[0 ..< secondLastDash]
+  result.ver = dirname[secondLastDash + 1 ..< lastDash]
+
+proc cmpVer(a, b: string): int =
+  if a == b: return 0
+  if a == "#head": return 1
+  if b == "#head": return -1
+  var aParts = a.split('.')
+  var bParts = b.split('.')
+  let maxLen = max(aParts.len, bParts.len)
+  while aParts.len < maxLen: aParts.add("0")
+  while bParts.len < maxLen: bParts.add("0")
+  for i in 0 ..< maxLen:
+    let an = try: parseInt(aParts[i]) except ValueError: 0
+    let bn = try: parseInt(bParts[i]) except ValueError: 0
+    if an != bn: return cmp(an, bn)
+  return cmp(a, b)
 
 let nimbleDir = getHomeDir() / ".nimble"
 let pkgs2Dir = nimbleDir / "pkgs2"
 
 if dirExists(pkgs2Dir):
+  var best = initTable[string, tuple[ver: string, path: string]]()
   for kind, path in walkDir(pkgs2Dir):
     if kind == pcDir:
-      switch("path", path)
+      let dirname = extractFilename(path)
+      let (name, ver) = parsePkg(dirname)
+      if name.len > 0:
+        if name notin best or cmpVer(ver, best[name].ver) > 0:
+          best[name] = (ver, path)
+      else:
+        best[dirname] = ("", path)
+  for _, item in best:
+    switch("path", item.path)
 """
 
 proc agentsTemplate*(): string =
