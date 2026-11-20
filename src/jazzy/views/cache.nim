@@ -15,29 +15,29 @@ import ../core/config
 
 type
   TemplateEntry = object
-    content:  string
-    mtime:    Time   ## mtime at load time; used for staleness check
+    content: string
+    mtime: Time ## mtime at load time; used for staleness check
     loadedAt: Time
 
   RenderedEntry = object
-    html:      string
-    expiresAt: float  ## epochTime() deadline; 0 = no expiry
+    html: string
+    expiresAt: float ## epochTime() deadline; 0 = no expiry
 
   ViewCacheStore* = ref object
     templateLock: Lock
-    templates:    Table[string, TemplateEntry]
+    templates: Table[string, TemplateEntry]
 
     renderLock: Lock
-    rendered:   Table[Hash, RenderedEntry]
+    rendered: Table[Hash, RenderedEntry]
 
-    hits*:      int  ## Approximate counters (not lock-protected; for diagnostics only)
-    misses*:    int
+    hits*: int ## Approximate counters (not lock-protected; for diagnostics only)
+    misses*: int
     evictions*: int
 
 proc newViewCacheStore*(): ViewCacheStore =
   result = ViewCacheStore(
     templates: initTable[string, TemplateEntry](),
-    rendered:  initTable[Hash, RenderedEntry]()
+    rendered: initTable[Hash, RenderedEntry]()
   )
   initLock(result.templateLock)
   initLock(result.renderLock)
@@ -45,7 +45,7 @@ proc newViewCacheStore*(): ViewCacheStore =
 var ViewCache* = newViewCacheStore()
 
 proc fileModTime(path: string): Time =
-  try:    getLastModificationTime(path)
+  try: getLastModificationTime(path)
   except: Time()
 
 proc makeRenderKey(viewPath, dataRepr: string): Hash =
@@ -77,7 +77,8 @@ proc loadTemplate*(store: ViewCacheStore, path: string): (string, bool) =
   let content = try: readFile(path) except: return ("", false)
 
   acquire(store.templateLock)
-  store.templates[path] = TemplateEntry(content: content, mtime: mtime, loadedAt: getTime())
+  store.templates[path] = TemplateEntry(content: content, mtime: mtime,
+      loadedAt: getTime())
   release(store.templateLock)
 
   {.cast(gcsafe).}: inc store.misses
@@ -122,13 +123,13 @@ proc getCachedRender*(store: ViewCacheStore,
 
 proc putCachedRender*(store: ViewCacheStore,
                       viewPath, dataRepr, html: string,
-                      ttl: int = 0) =
+                      ttl: float = 0.0) =
   ## Stores rendered HTML. ttl=0 means no expiry.
   ## No-op in dev mode.
   if isDevelopment(): return
 
-  let key       = makeRenderKey(viewPath, dataRepr)
-  let expiresAt = if ttl > 0: epochTime() + ttl.float else: 0.0
+  let key = makeRenderKey(viewPath, dataRepr)
+  let expiresAt = if ttl > 0: epochTime() + ttl else: 0.0
 
   acquire(store.renderLock)
   store.rendered[key] = RenderedEntry(html: html, expiresAt: expiresAt)
@@ -152,11 +153,11 @@ proc clearAll*(store: ViewCacheStore) =
 
 type ViewCacheStats* = object
   templateEntries*: int
-  renderEntries*:   int
-  hits*:            int
-  misses*:          int
-  evictions*:       int
-  enabled*:         bool  ## false in development mode
+  renderEntries*: int
+  hits*: int
+  misses*: int
+  evictions*: int
+  enabled*: bool ## false in development mode
 
 proc stats*(store: ViewCacheStore): ViewCacheStats =
   ## Thread-safe snapshot of cache diagnostics.
@@ -170,9 +171,9 @@ proc stats*(store: ViewCacheStore): ViewCacheStats =
 
   ViewCacheStats(
     templateEntries: tCount,
-    renderEntries:   rCount,
-    hits:            store.hits,
-    misses:          store.misses,
-    evictions:       store.evictions,
-    enabled:         not isDevelopment()
+    renderEntries: rCount,
+    hits: store.hits,
+    misses: store.misses,
+    evictions: store.evictions,
+    enabled: not isDevelopment()
   )
