@@ -1,4 +1,4 @@
-import std/[asyncdispatch, strutils, httpcore, tables, uri, locks]
+import std/[asyncdispatch, cpuinfo, strutils, httpcore, tables, uri, locks]
 import mummy
 import ../http/[types, context]
 import ../core/[server, logger, config]
@@ -120,6 +120,12 @@ method serve*(driver: MummyDriver, port: int, address: string,
           req.respond(500, @[], "Internal Server Error: " & e.msg)
       except Exception as innerE:
         Log.debug("Could not send 500 response (client disconnected): " & innerE.msg)
+    finally:
+      if hasPendingOperations():
+        try:
+          poll(0)
+        except CatchableError:
+          discard
 
   let maxUploadSizeStr = getConfig("MAX_UPLOAD_SIZE", "10")
   var maxBodyLen = 10 * 1024 * 1024 # default 10MB
@@ -128,5 +134,22 @@ method serve*(driver: MummyDriver, port: int, address: string,
   except ValueError:
     Log.debug("Invalid MAX_UPLOAD_SIZE in .env, using 10MB default")
 
-  driver.server = newServer(mummyHandler, websocketHandler = mummyWsHandler, maxBodyLen = maxBodyLen)
+  let defaultWorkers = clamp(countProcessors(), 2, 8)
+  let workersStr = getConfig("WEB_WORKERS", $defaultWorkers)
+  var workerThreads = defaultWorkers
+  try:
+    let parsedWorkers = parseInt(workersStr)
+    if parsedWorkers >= 1:
+      workerThreads = parsedWorkers
+    else:
+      Log.debug("Invalid WEB_WORKERS in .env, using default " & $defaultWorkers)
+  except ValueError:
+    Log.debug("Invalid WEB_WORKERS in .env, using default " & $defaultWorkers)
+
+  driver.server = newServer(
+    mummyHandler,
+    websocketHandler = mummyWsHandler,
+    workerThreads = workerThreads,
+    maxBodyLen = maxBodyLen
+  )
   driver.server.serve(Port(port), address)
