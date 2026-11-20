@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.5] - 2026-11-20
+
+### Fixed
+- **PostgreSQL Connection Pool Bounding**: Prevented `async_postgres` background `maintenanceLoop` from racing with idle connection health-check pings and opening extra connections beyond `DB_POOL_MAX`, serialized concurrent pool acquisitions per worker via `acquireSlot`/`releaseSlot`, and guarded worker pool initialization against concurrent startup races.
+- **Sensible Default Worker Threads**: Bounded default Mummy worker threads to `clamp(countProcessors(), 2, 8)` (configurable via `WEB_WORKERS` in `.env`) instead of `countProcessors() * 10`, and added a non-blocking post-response `poll(0)` tick to flush pending async cleanup tasks.
+
 ## [0.5.4] - 2026-11-18
 
 ### Fixed
