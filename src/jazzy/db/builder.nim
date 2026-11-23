@@ -382,7 +382,7 @@ proc tableInfo(tableName: string): Future[seq[ColumnInfo]] {.async, gcsafe.} =
       FROM information_schema.columns
       WHERE table_schema = current_schema() AND table_name = $1
       ORDER BY ordinal_position
-    """, @[normalizedName.toPgParam])
+    """, @[normalizedName.toPgParam], resultFormat = rfText)
     for row in queryResult:
       result.add(ColumnInfo(name: row.get(0, string).toLowerAscii(),
         dataType: row.get(1, string).toLowerAscii(),
@@ -600,7 +600,11 @@ proc queryStatement(sql: string, params: seq[QueryParam]): Future[JsonNode] {.as
   of dbPostgres:
     let db = await postgresForCurrentWorker()
     let pgSql = if params.len == 0: sql else: postgresPlaceholders(sql)
-    result = postgresResultToJson(await db.query(pgSql, params.toPostgres()))
+    # Use rfText so repeated executions of the same SQL statement (cached by
+    # async_postgres) keep returning text representations for timestamp, uuid,
+    # interval, array, and other non-primitive columns read via row.get(i, string).
+    result = postgresResultToJson(
+      await db.query(pgSql, params.toPostgres(), resultFormat = rfText))
   of dbMySql:
     raise newException(ValueError, "MySQL/MariaDB support is not available yet")
 
