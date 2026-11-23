@@ -54,11 +54,17 @@ proc connectPostgres*(dsn: string, minConnections = 1,
 
   new(result)
   result.maxConnections = maxConnections
-  # Pass minSize = 0 to async_postgres so its background maintenanceLoop does
-  # not race with acquireImpl's health-check ping() to open extra connections
-  # beyond maxConnections, and so idle connections can be pruned cleanly.
+  # Pass minSize = 0 so background maintenance replenishment cannot race with
+  # per-worker demand, and resetQuery = "" to avoid an extra round-trip (and
+  # background slot hold) on every query release in Jazzy's query builder.
+  # Use environment = false so DATABASE_URL in .env is not overridden by
+  # ambient PG* environment variables or host ~/.postgresql files.
   let config = initPoolConfig(
-    parseDsn(dsn), minSize = 0, maxSize = maxConnections)
+    parseDsn(dsn, environment = false),
+    minSize = 0,
+    maxSize = maxConnections,
+    resetQuery = ""
+  )
   # asyncdispatch keeps its dispatcher in thread-local storage. The driver is
   # conservative about that internal state, so Nim cannot infer GC safety
   # through its async call chain. This boundary is safe only because this
@@ -194,16 +200,17 @@ proc exec*(db: PostgresDatabase, statement: string,
       db.releaseSlot()
 
 proc query*(db: PostgresDatabase, statement: string,
-    params: seq[PgParam] = @[]): Future[QueryResult] {.async, gcsafe.} =
+    params: seq[PgParam] = @[],
+    resultFormat: ResultFormat = rfAuto): Future[QueryResult] {.async, gcsafe.} =
   ## Execute a parameterized query and return PostgreSQL row metadata and data.
   if db.isNil or db.pool.isNil:
     raise newException(ValueError, "PostgreSQL is not connected")
   {.cast(gcsafe).}:
     if not pinnedConnection.isNil:
-      return await pinnedConnection.query(statement, params)
+      return await pinnedConnection.query(statement, params, resultFormat = resultFormat)
     await db.acquireSlot()
     try:
-      return await db.pool.query(statement, params)
+      return await db.pool.query(statement, params, resultFormat = resultFormat)
     finally:
       db.releaseSlot()
 
