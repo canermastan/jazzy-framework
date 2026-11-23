@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.6] - 2026-11-23
+
+### Changed
+- **PostgreSQL Driver Upgrade**: Upgraded `async_postgres` to `>= 0.5.0 & < 0.6.0` (`parseDsn` with `environment = false`, explicit `resetQuery = ""`, and `rfText` result format for query builder queries), resolving Windows `-d:ssl` compilation errors (`X509_free`) (#33).
+
 ## [0.5.5] - 2026-11-20
 
 ### Fixed
